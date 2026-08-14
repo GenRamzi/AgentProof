@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.0] — Unreleased
+## [0.2.0.dev0] — Development
 
 AgentProof now includes a modular Core architecture with execution evidence, environment fingerprints, worktree management, stable AP rule IDs, policy presets, automatic test-command discovery, transplanted Proof Tests, JSON behavior contracts, dependency integrity checks, SARIF output, stable receipt schemas, receipt verification hooks, a reusable GitHub Action, security documentation, fixtures, and a production-oriented roadmap.
 

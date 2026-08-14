@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from agentproof.checks.tests.assertions import detect_assertion_weakening
 from agentproof.engine.evidence import RunEvidence
 from agentproof.policy.evaluator import preset
 from agentproof.proof.tests import classify
-from agentproof.receipt.model import Claim, Receipt
+from agentproof.receipt.model import Receipt
 from agentproof.receipt.verify import verify_receipt_data
 from agentproof.rules import RULES
 
@@ -35,7 +34,7 @@ def test_policy_presets():
 
 
 def test_receipt_digest_verifies():
-    receipt = Receipt("agentproof.receipt/v1", {"repository": "o/r", "base_sha": "b", "head_sha": "h"}, "VERIFIED", [Claim("tests_pass", "PROVEN")]).finalize()
+    receipt = Receipt(schema_version="agentproof.receipt/v1", receipt_id="AP-test", created_at="now", verifier_version="0.2.0.dev0", verdict="VERIFIED", base="b", head="h", claims=[{"type": "tests_pass", "status": "PROVEN"}], subject={"repository": "o/r", "base_sha": "b", "head_sha": "h"}).finalize()
     data = receipt.to_dict()
     valid, expected, actual = verify_receipt_data(data)
     assert valid

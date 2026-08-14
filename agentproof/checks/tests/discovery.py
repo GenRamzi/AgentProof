@@ -36,6 +36,16 @@ def detect_test_command_reduction(diff: dict[str, dict[str, list[tuple[int, str]
             continue
         removed = [text.strip() for _, text in chunks["removed"] if command_re.search(text)]
         added = [text.strip() for _, text in chunks["added"] if command_re.search(text)]
-        if removed and added and len(" ".join(added)) < len(" ".join(removed)):
+        def reduced_scope(before: str, after: str) -> bool:
+            if re.search(r"pytest\s+tests/", before, re.IGNORECASE) and re.search(r"pytest\s+tests/(?:unit|smoke|single)", after, re.IGNORECASE):
+                return True
+            if re.search(r"(?:jest|vitest).*--runInBand", after, re.IGNORECASE) and not re.search(r"--runInBand", before, re.IGNORECASE):
+                return False
+            if re.search(r"go\s+test\s+\./\.\.\.", before) and re.search(r"go\s+test\s+\./[^\s]+", after):
+                return True
+            if re.search(r"cargo\s+test", before) and re.search(r"cargo\s+test\s+\w+", after):
+                return True
+            return len(after) < len(before)
+        if removed and added and reduced_scope(" ".join(removed), " ".join(added)):
             findings.append(Finding("AP103", "high", "The configured test command appears to cover a smaller scope.", files=[path], evidence=[f"Previously: {' | '.join(removed[:3])}", f"Now: {' | '.join(added[:3])}"]))
     return findings

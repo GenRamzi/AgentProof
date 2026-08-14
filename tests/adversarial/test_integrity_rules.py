@@ -28,5 +28,5 @@ def test_adversarial_skip_and_filter_are_reported(tmp_path: Path):
     head = git(repo, "rev-parse", "HEAD")
     findings, _ = audit_diff(repo, base, head)
     ids = {finding.rule for finding in findings}
-    assert "AP002" in ids or "skip-added" in ids
-    assert "AP004" in ids or "test-ignore" in ids
+    assert "AP002" in ids
+    assert "AP004" in ids

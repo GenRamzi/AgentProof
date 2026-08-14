@@ -2,7 +2,7 @@
   "schema": "agentproof.fixtures/v1",
   "fixtures": [
     {"name": "real-fix", "expected": "PROVEN", "proof": true},
-    {"name": "fake-test", "expected": "INCONCLUSIVE", "rule": "AP201"},
+    {"name": "fake-test", "expected": "INCONCLUSIVE", "rule": "AP201", "proof": true},
     {"name": "test-deletion", "expected_rule": "AP001"},
     {"name": "new-skip", "expected_rule": "AP002"},
     {"name": "focused-test", "expected_rule": "AP003"},
@@ -10,9 +10,15 @@
     {"name": "weakened-assertion", "expected_rule": "AP005"},
     {"name": "coverage-exclusion", "expected_rule": "AP006"},
     {"name": "snapshot-overwrite", "expected_rule": "AP007"},
+    {"name": "mock-weakening", "expected_rule": "AP008"},
     {"name": "ci-job-removal", "expected_rule": "AP101"},
+    {"name": "ci-trigger-narrowed", "expected_rule": "AP102"},
+    {"name": "test-command-reduced", "expected_rule": "AP103"},
     {"name": "timeout-manipulation", "expected_rule": "AP104"},
     {"name": "dependency-explosion", "expected_rule": "AP301"},
-    {"name": "api-break", "expected_rule": "AP401"}
+    {"name": "lockfile-drift", "expected_rule": "AP302"},
+    {"name": "api-break", "expected_rule": "AP401"},
+    {"name": "invalid-receipt", "expected_rule": "AP501", "kind": "receipt"},
+    {"name": "untrusted-environment", "expected_rule": "AP502", "kind": "policy"}
   ]
 }

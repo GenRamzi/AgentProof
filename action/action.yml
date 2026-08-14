@@ -7,15 +7,15 @@ inputs:
     required: false
     default: ""
   proof-test:
-    description: Proof-test command. May be supplied multiple times through a newline-separated value.
+    description: Newline-separated proof-test commands.
     required: false
     default: ""
   policy:
-    description: Path to agentproof.yml or another policy file.
+    description: Policy file path in the caller workspace.
     required: false
     default: ""
   policy-preset:
-    description: Policy preset: default, strict, or enterprise.
+    description: default, strict, or enterprise.
     required: false
     default: default
   timeout:
@@ -23,7 +23,7 @@ inputs:
     required: false
     default: "600"
   auto-proof:
-    description: Automatically transplant newly added test files onto BASE.
+    description: Automatically discover and transplant new tests.
     required: false
     default: "true"
 outputs:
@@ -31,15 +31,15 @@ outputs:
     description: AgentProof verdict.
     value: ${{ steps.verify.outputs.verdict }}
   receipt:
-    description: Path to the generated receipt.
-    value: agentproof-receipt.json
+    description: Generated receipt path in the caller workspace.
+    value: ${{ steps.verify.outputs.receipt }}
 runs:
   using: composite
   steps:
     - id: install
       name: Install AgentProof Core
       shell: bash
-      run: python -m pip install .
+      run: python -m pip install "$GITHUB_ACTION_PATH/.."
     - id: verify
       name: Run independent verification
       shell: bash
@@ -52,15 +52,22 @@ runs:
         AP_AUTO_PROOF: ${{ inputs.auto-proof }}
       run: |
         set +e
-        args=(verify --repo . --base "${{ github.event.pull_request.base.sha || github.event.before }}" --head "${{ github.event.pull_request.head.sha || github.sha }}" --policy-preset "$AP_POLICY_PRESET" --timeout "$AP_TIMEOUT" --json agentproof-receipt.json --markdown agentproof-report.md --sarif agentproof.sarif)
+        base="${{ github.event.pull_request.base.sha || github.event.before }}"
+        head="${{ github.event.pull_request.head.sha || github.sha }}"
+        args=(verify --repo . --base "$base" --head "$head" --policy-preset "$AP_POLICY_PRESET" --timeout "$AP_TIMEOUT" --json agentproof-receipt.json --markdown agentproof-report.md --sarif agentproof.sarif)
         if [ -n "$AP_TEST_COMMAND" ]; then args+=(--test-command "$AP_TEST_COMMAND"); fi
         if [ -n "$AP_POLICY" ]; then args+=(--policy "$AP_POLICY"); fi
         if [ "$AP_AUTO_PROOF" = "false" ]; then args+=(--no-auto-proof); fi
         while IFS= read -r proof; do [ -n "$proof" ] && args+=(--proof-test "$proof"); done <<< "$AP_PROOF_TESTS"
         python -m agentproof "${args[@]}"
         status=$?
-        verdict=$(python -c 'import json; print(json.load(open("agentproof-receipt.json"))["verdict"])')
+        if [ -f agentproof-receipt.json ]; then
+          verdict=$(python -c 'import json; print(json.load(open("agentproof-receipt.json"))["verdict"])')
+        else
+          verdict=BLOCKED
+        fi
         echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+        echo "receipt=agentproof-receipt.json" >> "$GITHUB_OUTPUT"
         exit $status
     - name: Upload AgentProof artifacts
       if: always()

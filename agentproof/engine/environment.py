@@ -7,7 +7,6 @@ import platform
 import subprocess
 from pathlib import Path
 
-
 LOCKFILES = (
     "package-lock.json",
     "pnpm-lock.yaml",

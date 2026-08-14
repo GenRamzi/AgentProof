@@ -70,12 +70,13 @@ class VerificationReceipt:
     evidence: dict[str, Any] = field(default_factory=dict)
     findings: list[Finding] = field(default_factory=list)
     test_runs: dict[str, TestRun] = field(default_factory=dict)
-    proof_tests: list[ProofTestResult] = field(default_factory=list)
+    proof_tests: list[ProofTestResult | dict[str, Any]] = field(default_factory=list)
     environment: dict[str, Any] = field(default_factory=dict)
     receipt_sha256: str = ""
     subject: dict[str, str] = field(default_factory=dict)
     policy: dict[str, Any] = field(default_factory=dict)
     evidence_graph: dict[str, Any] = field(default_factory=dict)
+    signature: dict[str, Any] | None = None
 
     def stable_unsigned_dict(self) -> dict[str, Any]:
         runs = []
@@ -90,7 +91,7 @@ class VerificationReceipt:
             "subject": self.subject or {"base_sha": self.base, "head_sha": self.head},
             "verdict": self.verdict,
             "claims": self.evidence.get("claims", self.claims),
-            "proof_tests": [asdict(item) if hasattr(item, "__dataclass_fields__") else item for item in self.proof_tests],
+            "proof_tests": [asdict(item) if isinstance(item, ProofTestResult) else item for item in self.proof_tests],
             "test_runs": runs,
             "integrity_findings": [asdict(item) for item in self.findings],
             "environment": self.environment,
@@ -105,8 +106,49 @@ class VerificationReceipt:
         payload = self.stable_unsigned_dict()
         payload["digest"] = self.receipt_sha256
         payload["receipt_sha256"] = self.receipt_sha256
+        if self.signature is not None:
+            payload["signature"] = self.signature
         return payload
+
+    def finalize(self) -> VerificationReceipt:
+        import hashlib
+        import json
+        canonical = json.dumps(self.stable_unsigned_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+        self.receipt_sha256 = "sha256:" + hashlib.sha256(canonical).hexdigest()
+        return self
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> VerificationReceipt:
+        from copy import deepcopy
+        payload = deepcopy(data)
+        subject = payload.get("subject", {})
+        findings = [Finding(**item) for item in payload.get("integrity_findings", payload.get("findings", []))]
+        runs_data = payload.get("test_runs", [])
+        runs = {}
+        if isinstance(runs_data, dict):
+            for name, item in runs_data.items():
+                runs[name] = TestRun(**{key: value for key, value in item.items() if key in TestRun.__dataclass_fields__})
+        return cls(
+            schema_version=payload.get("schema", payload.get("schema_version", "agentproof.receipt/v1")),
+            receipt_id=payload.get("receipt_id", ""),
+            created_at=payload.get("created_at", ""),
+            verifier_version=payload.get("verifier_version", ""),
+            verdict=payload.get("verdict", ""),
+            base=payload.get("base", subject.get("base_sha", "")),
+            head=payload.get("head", subject.get("head_sha", "")),
+            claims=payload.get("claims", []),
+            evidence={"claims": payload.get("claims", [])},
+            findings=findings,
+            test_runs=runs,
+            proof_tests=payload.get("proof_tests", []),
+            environment=payload.get("environment", {}),
+            receipt_sha256=payload.get("digest", payload.get("receipt_sha256", "")),
+            subject=subject,
+            policy=payload.get("policy", {}),
+            evidence_graph=payload.get("evidence_graph", {}),
+            signature=payload.get("signature"),
+        )
 
 
 # Prevent pytest from treating this data model as a test class when imported.
-TestRun.__test__ = False
+TestRun.__test__ = False  # type: ignore[attr-defined]

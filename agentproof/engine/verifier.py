@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import secrets
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -14,8 +15,13 @@ from ..checks.common import changed_files, diff_by_file
 from ..checks.contracts.json_contract import compare_json_contracts
 from ..checks.dependencies.check import detect_dependency_integrity
 from ..checks.tests.assertions import detect_assertion_weakening
-from ..checks.tests.discovery import detect_deleted_tests, detect_discovery_reduction, detect_test_command_reduction
+from ..checks.tests.discovery import (
+    detect_deleted_tests,
+    detect_discovery_reduction,
+    detect_test_command_reduction,
+)
 from ..checks.tests.focus import detect_focused_tests
+from ..checks.tests.mock import detect_mock_weakening
 from ..checks.tests.skips import detect_added_skips
 from ..checks.tests.snapshots import detect_coverage_and_snapshots
 from ..engine.environment import fingerprint
@@ -72,6 +78,7 @@ def verify_core(repo: Path, base: str, head: str, test_command: str | None = Non
     findings: list[Finding] = []
     findings.extend(detect_added_skips(diff))
     findings.extend(detect_focused_tests(diff))
+    findings.extend(detect_mock_weakening(diff))
     findings.extend(detect_deleted_tests(diff))
     findings.extend(detect_discovery_reduction(diff))
     findings.extend(detect_test_command_reduction(diff))
@@ -85,13 +92,15 @@ def verify_core(repo: Path, base: str, head: str, test_command: str | None = Non
     with WorktreeManager(repo) as worktrees:
         base_path = worktrees.create(base, "base")
         head_path = worktrees.create(head, "head")
-        environment = fingerprint(head_path, network_mode=network_mode, runner_type="github-actions" if network_mode else "local")
+        runner_type = "github-actions" if os.environ.get("GITHUB_ACTIONS", "").lower() == "true" else "local"
+        environment = fingerprint(head_path, network_mode=network_mode, runner_type=runner_type)
         base_evidence = execute(command, base_path, "BASE", base, str(environment.get("fingerprint", "")), timeout)
         head_evidence = execute(command, head_path, "HEAD", head, str(environment.get("fingerprint", "")), timeout)
         base_run, head_run = _test_run(base_evidence), _test_run(head_evidence)
         findings.extend(detect_assertion_weakening(base_path, head_path, changed))
         for relative in changed:
-            if relative.endswith(".json") and (base_path / relative).is_file() and (head_path / relative).is_file():
+            contract_candidate = relative.endswith(("contract.json", ".schema.json")) or "/contracts/" in relative or "/schemas/" in relative
+            if contract_candidate and (base_path / relative).is_file() and (head_path / relative).is_file():
                 findings.extend(compare_json_contracts(base_path / relative, head_path / relative, relative))
 
     proof_results, proof_findings = run_proof_tests(repo, base, head, proof_commands, timeout, str(environment.get("fingerprint", ""))) if proof_commands else ([], [])
@@ -102,11 +111,18 @@ def verify_core(repo: Path, base: str, head: str, test_command: str | None = Non
         proof_results.extend(transplanted)
         findings.extend(transplanted_findings)
 
+    security_policy = policy.get("security", {}) if policy else {}
+    if security_policy.get("isolated_runner_required") and os.environ.get("AGENTPROOF_ISOLATED_RUNNER", "").lower() != "true":
+        findings.append(Finding("AP502", "high", "The selected policy requires an isolated runner, but the current runner did not attest isolation.", evidence=["Set AGENTPROOF_ISOLATED_RUNNER=true only from a trusted isolated runner."]))
+    receipt_policy = policy.get("receipt", {}) if policy else {}
+    if receipt_policy.get("signature_required") and not os.environ.get("AGENTPROOF_ED25519_PRIVATE_KEY"):
+        findings.append(Finding("AP501", "high", "The selected policy requires a signed receipt, but no signing key is available.", evidence=["Provide AGENTPROOF_ED25519_PRIVATE_KEY from a trusted signing step."]))
     findings = evaluate_findings(findings, policy) if policy else findings
     blocking = [finding for finding in findings if finding.metadata.get("policy_action", "block") == "block"]
+    security_blockers = [finding for finding in findings if finding.rule in {"AP501", "AP502"}]
     proof_blockers = [result for result in proof_results if result.get("status") in {"NOT_FIXED", "REGRESSION", "UNREPRODUCIBLE"}]
     require_proof = bool(policy.get("verification", {}).get("require_proof_tests", False))
-    if not head_run.passed or blocking or proof_blockers or (require_proof and not proof_results):
+    if not head_run.passed or blocking or security_blockers or proof_blockers or (require_proof and not proof_results):
         verdict = "BLOCKED"
     elif any(result.get("status") == "INCONCLUSIVE" for result in proof_results):
         verdict = "INCONCLUSIVE"
@@ -139,6 +155,10 @@ def verify_core(repo: Path, base: str, head: str, test_command: str | None = Non
         "edges": [{"source": "head-tests", "target": "receipt", "relation": "supports"}],
     }
     receipt.evidence["claims"] = [asdict(claim) for claim in _claims(claims, base_run, head_run, proof_results, findings)]
-    canonical = json.dumps(receipt.unsigned_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    private_key = os.environ.get("AGENTPROOF_ED25519_PRIVATE_KEY")
+    if receipt_policy.get("signature_required") and private_key:
+        from ..receipt.sign import sign_payload
+        receipt.signature = sign_payload(receipt.stable_unsigned_dict(), bytes.fromhex(private_key))
+    canonical = json.dumps(receipt.stable_unsigned_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
     receipt.receipt_sha256 = "sha256:" + hashlib.sha256(canonical).hexdigest()
     return receipt

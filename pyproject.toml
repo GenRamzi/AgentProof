@@ -4,17 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentproof"
-version = "0.2.0"
+version = "0.2.0.dev0"
 description = "Independent verification for AI-generated software"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["PyYAML>=6.0"]
+dependencies = ["PyYAML>=6.0", "jsonschema>=4.0"]
 authors = [{name = "AgentProof contributors"}]
 license = "Apache-2.0"
 keywords = ["ai", "verification", "github-actions", "testing", "supply-chain"]
 classifiers = [
   "Development Status :: 3 - Alpha",
-  "License :: OSI Approved :: Apache Software License",
+
   "Programming Language :: Python :: 3",
 ]
 
@@ -23,6 +23,12 @@ agentproof = "agentproof.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["agentproof*"]
+
+[tool.setuptools.package-data]
+agentproof = ["schema_data/*.json"]
+
+[project.optional-dependencies]
+dev = ["build", "coverage", "mypy", "pytest", "ruff"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

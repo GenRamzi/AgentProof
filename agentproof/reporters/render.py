@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 
@@ -55,10 +54,11 @@ def render_markdown(receipt: Any) -> str:
         lines.append("- No integrity violations detected by the configured rules.")
     lines += ["", "## Test Runs", "", "| Revision | Result | Exit | Duration | Test counts |", "|---|---:|---:|---:|---|"]
     runs = data.get("test_runs", {})
+    iterator: list[tuple[str, Any]]
     if isinstance(runs, dict):
-        iterator = runs.items()
+        iterator = [(str(name), run) for name, run in runs.items()]
     else:
-        iterator = ((run.get("revision", "unknown"), run) for run in runs)
+        iterator = [(str(run.get("revision", "unknown")), run) for run in runs]
     for name, run in iterator:
         lines.append(f"| {name} | {'PASS' if run.get('exit_code') == 0 else 'FAIL'} | {run.get('exit_code')} | {run.get('duration_seconds', 0)}s | `{run.get('test_counts', {})}` |")
     lines += ["", "## Receipt", "", f"Digest: `{data.get('receipt_sha256') or data.get('digest', '')}`", ""]

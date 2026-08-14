@@ -4,7 +4,6 @@ import re
 
 from ...models import Finding
 
-
 SKIP_RE = re.compile(r"(?:pytest\.mark\.(?:skip|skipif|xfail)|unittest\.(?:skip|skipIf|expectedFailure)|\b(?:skip|xfail|xit|xdescribe)\b)", re.IGNORECASE)
 
 

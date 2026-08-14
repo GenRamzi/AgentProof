@@ -40,7 +40,7 @@ class WorktreeManager:
         if root.exists():
             shutil.rmtree(root, ignore_errors=True)
 
-    def __enter__(self) -> "WorktreeManager":
+    def __enter__(self) -> WorktreeManager:  # noqa: PYI034
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:

@@ -4,7 +4,6 @@ import re
 
 from ...models import Finding
 
-
 FOCUS_RE = re.compile(r"\.(?:only|focus)\s*\(|\b(?:fit|fdescribe|xonly|xit|xdescribe)\s*\(", re.IGNORECASE)
 
 

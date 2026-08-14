@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -53,28 +52,25 @@ def load_policy(path: Path | None = None, name: str = "default") -> dict[str, An
         raise RuntimeError("PyYAML is required to load agentproof.yml")
     parsed = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     if not isinstance(parsed, dict):
-        raise ValueError("Policy root must be a mapping")
+        raise TypeError("Policy root must be a mapping")
     return _merge(policy, parsed)
 
 
 def action_for(policy: dict[str, Any], rule_id: str) -> str:
-    mapping = {
-        "AP001": "deleted_tests",
-        "AP002": "new_skips",
-        "AP003": "new_skips",
-        "AP004": "ci_changes",
-        "AP005": "assertion_weakening",
-        "AP006": "coverage_exclusion",
-        "AP007": "snapshot_overwrite",
-        "AP101": "ci_changes",
-        "AP102": "ci_changes",
-        "AP103": "ci_changes",
-        "AP104": "ci_changes",
-        "AP301": "dependency_expansion",
-        "AP302": "lockfile_changes",
-        "AP401": "api_contract_changes",
+    integrity = {
+        "AP001": "deleted_tests", "AP002": "new_skips", "AP003": "new_skips",
+        "AP004": "discovery_reduction", "AP005": "assertion_weakening", "AP006": "coverage_exclusion",
+        "AP007": "snapshot_overwrite", "AP008": "mock_weakening", "AP101": "ci_changes",
+        "AP102": "ci_changes", "AP103": "ci_changes", "AP104": "ci_changes", "AP401": "api_contract_changes",
     }
-    return str(policy.get("integrity", {}).get(mapping.get(rule_id, ""), "warning"))
+    dependency = {"AP301": "dependency_expansion", "AP302": "lockfile_changes"}
+    if rule_id in dependency:
+        return str(policy.get("dependencies", {}).get(dependency[rule_id], "review"))
+    if rule_id == "AP006":
+        return str(policy.get("coverage", {}).get("coverage_exclusion", policy.get("integrity", {}).get("coverage_exclusion", "review")))
+    if rule_id in integrity:
+        return str(policy.get("integrity", {}).get(integrity[rule_id], "warning"))
+    return "warning"
 
 
 def evaluate_findings(findings: list[Any], policy: dict[str, Any]) -> list[Any]:

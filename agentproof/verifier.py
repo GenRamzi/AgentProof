@@ -13,7 +13,7 @@ from .checks import audit_diff
 from .models import ProofTestResult, TestRun, VerificationReceipt
 from .runner import run_command
 
-VERSION = "0.2.0"
+VERSION = "0.2.0.dev0"
 
 
 def checkout(repo: Path, ref: str, worktree: Path) -> None:
@@ -105,7 +105,7 @@ def verify(
         evidence={"diff": diff_evidence, "head_tests_passed": head_tests.passed},
         findings=findings,
         test_runs={"base": base_tests, "head": head_tests},
-        proof_tests=proof_results,
+        proof_tests=proof_results,  # type: ignore[arg-type]
         environment=_environment(),
     )
     canonical = json.dumps(receipt.unsigned_dict(), sort_keys=True, separators=(",", ":")).encode()

@@ -8,12 +8,12 @@ from .canonical import canonical_json
 def sign_payload(payload: dict[str, Any], private_key: bytes) -> dict[str, str]:
     try:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-        from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
+        from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError("Install cryptography to use Ed25519 signing") from exc
     key = Ed25519PrivateKey.from_private_bytes(private_key)
     signature = key.sign(canonical_json(payload)).hex()
-    public = key.public_key().public_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption()).hex()
+    public = key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw).hex()
     return {"algorithm": "Ed25519", "public_key": public, "signature": signature}
 
 

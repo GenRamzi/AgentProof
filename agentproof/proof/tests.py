@@ -35,6 +35,17 @@ def discover_new_tests(changed_files: list[str]) -> list[str]:
     return [path for path in changed_files if re.search(r"(^|/)(tests?|spec|__tests__)/.*(?:test|spec)[^/]*\.(py|js|jsx|ts|tsx)$", path, re.IGNORECASE)]
 
 
+def targeted_command(test_command: str, test_file: str) -> str:
+    lowered = test_command.lower()
+    if "pytest" in lowered or test_file.endswith(".py"):
+        return f"pytest -q {test_file}"
+    if "vitest" in lowered or test_file.endswith((".ts", ".tsx")):
+        return f"npx vitest run {test_file}"
+    if "jest" in lowered or test_file.endswith((".js", ".jsx")):
+        return f"npx jest {test_file} --runInBand"
+    return test_command
+
+
 def run_proof_tests(repo: Path, base: str, head: str, commands: list[str], timeout: int, fingerprint: str) -> tuple[list[dict[str, object]], list[Finding]]:
     results: list[dict[str, object]] = []
     findings: list[Finding] = []
@@ -57,9 +68,11 @@ def run_transplanted_proofs(repo: Path, base: str, head: str, tests: list[str], 
         with WorktreeManager(repo) as worktrees:
             base_path = worktrees.create_transplant(base, head, relative, f"transplant-{index}")
             head_path = worktrees.create(head, f"head-{index}")
-            base_run = execute(test_command, base_path, "BASE_TRANSPLANTED", base, fingerprint, timeout)
-            head_run = execute(test_command, head_path, "HEAD", head, fingerprint, timeout)
-            result = classify(f"transplanted:{relative}:{test_command}", base_run, head_run)
+            targeted = targeted_command(test_command, relative)
+            base_run = execute(targeted, base_path, "BASE_TRANSPLANTED", base, fingerprint, timeout)
+            head_run = execute(targeted, head_path, "HEAD", head, fingerprint, timeout)
+            result = classify(f"transplanted:{relative}:{targeted}", base_run, head_run)
+            result["targeted_command"] = targeted
             result["test_file"] = relative
             results.append(result)
             findings.extend(findings_for_proof(result))

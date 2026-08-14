@@ -1,0 +1,16 @@
+{
+  "schema": "agentproof.receipt/v1",
+  "subject": {
+    "repository": "o/r",
+    "base_sha": "b",
+    "head_sha": "h"
+  },
+  "verdict": "VERIFIED",
+  "claims": [],
+  "proof_tests": [],
+  "test_runs": [],
+  "integrity_findings": [],
+  "environment": {},
+  "policy": {},
+  "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+}

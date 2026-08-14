@@ -26,7 +26,10 @@ def run_command(command: str, cwd: Path, timeout: int = 600) -> TestRun:
         output = completed.stdout or ""
     except subprocess.TimeoutExpired as exc:
         exit_code = 124
-        output = (exc.stdout or "") + f"\nAgentProof: command timed out after {timeout}s."
+        raw_output = exc.stdout or ""
+        if isinstance(raw_output, bytes):
+            raw_output = raw_output.decode(errors="replace")
+        output = raw_output + f"\nAgentProof: command timed out after {timeout}s."
     except OSError as exc:
         exit_code = 127
         output = f"AgentProof: unable to execute command: {exc}"

@@ -28,7 +28,7 @@ def execute(command: str, cwd: Path, revision: str, commit_sha: str = "", enviro
     started = time.monotonic()
     env = {**os.environ, "CI": "true", "AGENTPROOF_NETWORK_MODE": os.environ.get("AGENTPROOF_NETWORK_MODE", "deny")}
     try:
-        completed = subprocess.run(command, cwd=cwd, shell=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout, env=env, check=False)
+        completed = subprocess.run(command, cwd=cwd, shell=True, text=True, capture_output=True, timeout=timeout, env=env, check=False)
         exit_code = completed.returncode
         stdout, stderr = completed.stdout or "", completed.stderr or ""
     except subprocess.TimeoutExpired as exc:

@@ -6,7 +6,6 @@ from pathlib import Path
 
 from ...models import Finding
 
-
 _OPERATOR_STRENGTH = {
     "Eq": 5,
     "NotEq": 4,

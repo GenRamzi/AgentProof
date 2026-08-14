@@ -7,7 +7,7 @@ from ...models import Finding
 
 def detect_coverage_and_snapshots(diff: dict[str, dict[str, list[tuple[int, str]]]]) -> list[Finding]:
     findings: list[Finding] = []
-    coverage_re = re.compile(r"(?:no\s*cover|coverage\s+omit|--cov-fail-under\s*=\s*0|coverageThreshold\s*:\s*\{\s*\})", re.IGNORECASE)
+    coverage_re = re.compile(r"(?:no\s*cover|coverage\s+omit|(?:^|\s)(?:omit|exclude)\s*=|--cov-fail-under\s*=\s*0|coverageThreshold\s*:\s*\{\s*\})", re.IGNORECASE)
     snapshot_re = re.compile(r"(?:__snapshots__|--update-snapshots|jest\s+-u|vitest\s+-u)", re.IGNORECASE)
     for path, chunks in diff.items():
         added = [(line, text.strip()) for line, text in chunks["added"]]

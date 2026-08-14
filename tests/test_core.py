@@ -37,6 +37,6 @@ def test_audit_detects_added_skip_and_ci_change(tmp_path: Path):
 
     findings, evidence = audit_diff(repo, base, head)
     rules = {finding.rule for finding in findings}
-    assert "skip-added" in rules
-    assert "ci-changed" in rules
+    assert "AP002" in rules
+    assert "AP004" in rules
     assert evidence["changed_files"]
