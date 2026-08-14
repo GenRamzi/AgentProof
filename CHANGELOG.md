@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.0rc2] — Release Candidate
+
+Corrected `environment.agentproof_version` so RC receipts use the single package version source instead of a stale hard-coded stable value. Added regression coverage for version consistency. The previously published `v0.2.0rc1` tag remains immutable.
+
 ## [0.2.0rc1] — Release Candidate
 
 The first v0.2 release candidate adds lossless Receipt round trips, schema/digest/signature verification, optional Ed25519 signing, AP204/AP205 proof statuses, shell-safe targeted filenames, deterministic parser fuzz coverage, 90%+ coverage enforcement, PEP 440 tag validation, immutable release Action pins, Dependabot, CODEOWNERS, main-branch ruleset protection, and the external `agentproof-demo` validation repository.

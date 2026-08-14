@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from agentproof import __version__
 from agentproof.engine.environment import fingerprint
 from agentproof.engine.verifier import verify_core
 from agentproof.policy.evaluator import preset
@@ -30,6 +31,7 @@ def test_local_environment_is_not_github_actions(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     environment = fingerprint(tmp_path, network_mode="deny", runner_type="local")
     assert environment["runner_type"] == "local"
+    assert environment["agentproof_version"] == __version__
 
 
 def test_enterprise_policy_requires_attestations(tmp_path: Path):

@@ -7,6 +7,8 @@ import platform
 import subprocess
 from pathlib import Path
 
+from .. import __version__
+
 LOCKFILES = (
     "package-lock.json",
     "pnpm-lock.yaml",
@@ -55,7 +57,7 @@ def fingerprint(repo: Path, network_mode: str = "deny", runner_type: str = "loca
         "container_digest": os.environ.get("AGENTPROOF_CONTAINER_DIGEST", "unknown"),
         "network_mode": network_mode,
         "runner_type": runner_type,
-        "agentproof_version": "0.2.0",
+        "agentproof_version": __version__,
     }
     canonical = json.dumps(data, sort_keys=True, separators=(",", ":")).encode()
     data["fingerprint"] = "sha256:" + hashlib.sha256(canonical).hexdigest()
