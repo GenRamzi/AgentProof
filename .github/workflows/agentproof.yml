@@ -1,0 +1,50 @@
+name: AgentProof
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  verify:
+    name: Independent verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install AgentProof
+        run: python -m pip install .
+
+      - name: Verify PR
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: >-
+          agentproof verify
+          --repo .
+          --base "$BASE_SHA"
+          --head "$HEAD_SHA"
+          --test-command "pytest -q"
+          --claim "All tests pass"
+          --json agentproof-receipt.json
+          --markdown agentproof-report.md
+
+      - name: Upload AgentProof receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentproof-receipt
+          path: |
+            agentproof-receipt.json
+            agentproof-report.md
