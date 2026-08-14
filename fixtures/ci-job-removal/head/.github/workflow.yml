@@ -1,0 +1,5 @@
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - run: ruff check .
