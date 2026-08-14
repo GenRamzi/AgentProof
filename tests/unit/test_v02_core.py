@@ -43,7 +43,7 @@ def test_policy_presets():
 
 
 def test_receipt_digest_verifies():
-    receipt = Receipt(schema_version="agentproof.receipt/v1", receipt_id="AP-test", created_at="now", verifier_version="0.2.0.dev0", verdict="VERIFIED", base="b", head="h", claims=[{"type": "tests_pass", "status": "PROVEN"}], subject={"repository": "o/r", "base_sha": "b", "head_sha": "h"}).finalize()
+    receipt = Receipt(schema_version="agentproof.receipt/v1", receipt_id="AP-test", created_at="now", verifier_version="0.2.0rc1", verdict="VERIFIED", base="b", head="h", claims=[{"type": "tests_pass", "status": "PROVEN"}], subject={"repository": "o/r", "base_sha": "b", "head_sha": "h"}).finalize()
     data = receipt.to_dict()
     valid, expected, actual = verify_receipt_data(data)
     assert valid

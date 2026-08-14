@@ -1,12 +1,12 @@
 # Release Readiness
 
-## Development channel
+## Release-candidate channel
 
-The repository currently identifies itself as `0.2.0.dev0`. This channel is for integration work and does not claim stable release guarantees.
+The repository currently identifies itself as `0.2.0rc1`. This is the first release candidate; it is not yet the stable `0.2.0` release. The immutable tag must be `v0.2.0rc1`, and the release workflow rejects any tag that does not exactly match the package version.
 
 ## RC gates
 
-Before creating `v0.2.0-rc.1`, run a clean install, compile check, ruff, mypy, Python 3.10–3.13 matrix, full tests, fixture harness, coverage threshold, installed-wheel smoke test, receipt schema and digest verification, external Action-path E2E, SARIF generation, and `pip-audit`.
+Before publishing `v0.2.0rc1`, run a clean install, compile check, ruff, mypy, Python 3.10–3.13 matrix, full tests, fixture harness, coverage threshold, installed-wheel smoke test, receipt schema and digest verification, external Action-path E2E, SARIF generation, and `pip-audit`. The demo repository must then use `GenRamzi/AgentProof@v0.2.0rc1` and exercise the AP001/AP002 scenarios.
 
 The RC should be exercised in three to five real Python repositories and at least one JavaScript/TypeScript repository. Those runs should be recorded as anonymized compatibility evidence rather than presented as fabricated adoption.
 

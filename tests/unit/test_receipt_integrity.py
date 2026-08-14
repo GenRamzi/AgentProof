@@ -21,7 +21,7 @@ def make_receipt() -> VerificationReceipt:
         schema_version="agentproof.receipt/v1",
         receipt_id="receipt-1",
         created_at="2026-08-15T00:00:00Z",
-        verifier_version="0.2.0.dev0",
+        verifier_version="0.2.0rc1",
         verdict="VERIFIED",
         base="a" * 40,
         head="b" * 40,

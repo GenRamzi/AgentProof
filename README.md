@@ -168,14 +168,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # Development example; pin to v0.2.0 or a full SHA after the stable release.
-      - uses: GenRamzi/AgentProof@main
+      # Release-candidate example; pin to v0.2.0 or a full SHA after stable release.
+      - uses: GenRamzi/AgentProof@v0.2.0rc1
         with:
           test-command: pytest -q
           policy: policies/strict.yml
 ```
 
-The included workflow uses the unprivileged `pull_request` event. For stable consumers, pin `GenRamzi/AgentProof@v0.2.0` or a full commit SHA; do not depend on a moving default branch.
+The included workflow uses the unprivileged `pull_request` event. The current release-candidate reference is `GenRamzi/AgentProof@v0.2.0rc1`; after stable release, pin `GenRamzi/AgentProof@v0.2.0` or a full commit SHA and do not depend on a moving default branch.
 
  It does not use `pull_request_target` to execute untrusted code, does not pass secrets to the PR, produces Markdown, JSON, and SARIF artifacts, and is explicit that the default CLI is not a security sandbox.
 

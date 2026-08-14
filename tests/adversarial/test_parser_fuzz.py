@@ -23,7 +23,7 @@ def test_receipts_round_trip_random_unicode_and_long_output() -> None:
             schema_version="agentproof.receipt/v1",
             receipt_id=f"fuzz-{index}-{text[:8]}",
             created_at="now",
-            verifier_version="0.2.0.dev0",
+            verifier_version="0.2.0rc1",
             verdict="VERIFIED",
             base="a" * 40,
             head="b" * 40,
