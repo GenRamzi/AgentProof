@@ -168,8 +168,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # Pin to v0.2.0 after the stable release; use v0.2.0-rc.1 during RC testing.
-      - uses: GenRamzi/AgentProof@v0.2.0-rc.1
+      # Development example; pin to v0.2.0 or a full SHA after the stable release.
+      - uses: GenRamzi/AgentProof@main
         with:
           test-command: pytest -q
           policy: policies/strict.yml
