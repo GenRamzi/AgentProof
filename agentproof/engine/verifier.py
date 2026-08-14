@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .. import __version__
 from ..adapters.discover import discover_canonical_command
 from ..checks.ci.github_actions import detect_ci_integrity
 from ..checks.common import changed_files, diff_by_file
@@ -32,7 +33,7 @@ from ..models import ClaimResult, Finding, TestRun, VerificationReceipt
 from ..policy.evaluator import evaluate_findings
 from ..proof.tests import discover_new_tests, run_proof_tests, run_transplanted_proofs
 
-VERSION = "0.2.0"
+VERSION = __version__
 
 
 def _test_run(run: Any) -> TestRun:

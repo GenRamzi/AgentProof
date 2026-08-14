@@ -19,6 +19,7 @@ def sign_payload(payload: dict[str, Any], private_key: bytes) -> dict[str, str]:
 
 def verify_signature(payload: dict[str, Any], signature: dict[str, str]) -> bool:
     try:
+        from cryptography.exceptions import InvalidSignature
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
     except ImportError:
         return False
@@ -26,5 +27,5 @@ def verify_signature(payload: dict[str, Any], signature: dict[str, str]) -> bool
         key = Ed25519PublicKey.from_public_bytes(bytes.fromhex(signature["public_key"]))
         key.verify(bytes.fromhex(signature["signature"]), canonical_json(payload))
         return True
-    except (KeyError, ValueError):
+    except (InvalidSignature, KeyError, TypeError, ValueError):
         return False

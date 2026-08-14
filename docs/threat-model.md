@@ -14,6 +14,8 @@ AgentProof workflows must use `pull_request`, not `pull_request_target`, for unt
 
 The verifier records output hashes, environment fingerprints, commit SHAs, lockfile hashes, and policy mode. Receipts are canonicalized and SHA-256 addressed. Future signed receipts should use established Ed25519, DSSE, in-toto, and Sigstore mechanisms rather than a custom trust system.
 
+Automatic proof commands are generated only for discovered test filenames and quote those filenames with shell-aware escaping before execution. A user-configured test command is intentionally treated as caller-controlled configuration and is not rewritten by AgentProof; repositories running untrusted code must therefore use a disposable runner and least-privilege permissions. Adversarial tests cover spaces, shell variables, quotes, Unicode, traversal strings, and command separators in filenames.
+
 ## Residual risk
 
 A local invocation can still run arbitrary code with the caller's privileges. A deterministic static detector can produce false positives or miss language-specific manipulation. Test output can be misleading when a framework's discovery semantics are unknown. AgentProof therefore reports neutral findings and preserves evidence rather than claiming perfect security.

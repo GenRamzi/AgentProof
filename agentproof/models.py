@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -124,10 +125,20 @@ class VerificationReceipt:
         subject = payload.get("subject", {})
         findings = [Finding(**item) for item in payload.get("integrity_findings", payload.get("findings", []))]
         runs_data = payload.get("test_runs", [])
-        runs = {}
+        runs: dict[str, TestRun] = {}
+        iterable: Iterable[tuple[str, Any]]
         if isinstance(runs_data, dict):
-            for name, item in runs_data.items():
-                runs[name] = TestRun(**{key: value for key, value in item.items() if key in TestRun.__dataclass_fields__})
+            iterable = runs_data.items()
+        elif isinstance(runs_data, list):
+            iterable = ((str(item.get("revision", f"run-{index}")), item) for index, item in enumerate(runs_data) if isinstance(item, dict))
+        else:
+            iterable = ()
+        for name, item in iterable:
+            if not isinstance(item, dict):
+                continue
+            run_name = str(name).lower()
+            fields = {key: value for key, value in item.items() if key in TestRun.__dataclass_fields__}
+            runs[run_name] = TestRun(**fields)
         return cls(
             schema_version=payload.get("schema", payload.get("schema_version", "agentproof.receipt/v1")),
             receipt_id=payload.get("receipt_id", ""),

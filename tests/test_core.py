@@ -1,21 +1,21 @@
 from pathlib import Path
 
 from agentproof.checks import audit_diff
-from agentproof.models import TestRun
-from agentproof.verifier import compare_proof_test
+from agentproof.engine.evidence import RunEvidence
+from agentproof.proof.tests import classify
 
 
 def test_proof_test_requires_base_fail_and_pr_pass():
-    base = TestRun("pytest -q tests/test_login.py", "/tmp/base", 1, 0.1, "failed")
-    head = TestRun("pytest -q tests/test_login.py", "/tmp/head", 0, 0.1, "passed")
-    result = compare_proof_test("pytest -q tests/test_login.py", base, head)
-    assert result.status == "PROVEN"
+    base = RunEvidence("BASE", "pytest -q tests/test_login.py", "/tmp/base", 1, 0.1, "", "", "failed")
+    head = RunEvidence("HEAD", "pytest -q tests/test_login.py", "/tmp/head", 0, 0.1, "", "", "passed")
+    result = classify("pytest -q tests/test_login.py", base, head)
+    assert result["status"] == "PROVEN"
 
 
 def test_already_passing_test_is_inconclusive():
-    base = TestRun("pytest -q", "/tmp/base", 0, 0.1, "passed")
-    head = TestRun("pytest -q", "/tmp/head", 0, 0.1, "passed")
-    assert compare_proof_test("pytest -q", base, head).status == "INCONCLUSIVE"
+    base = RunEvidence("BASE", "pytest -q", "/tmp/base", 0, 0.1, "", "", "passed")
+    head = RunEvidence("HEAD", "pytest -q", "/tmp/head", 0, 0.1, "", "", "passed")
+    assert classify("pytest -q", base, head)["status"] == "INCONCLUSIVE"
 
 
 def test_audit_detects_added_skip_and_ci_change(tmp_path: Path):

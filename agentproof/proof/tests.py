@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import shlex
 from dataclasses import asdict
 from pathlib import Path
 
@@ -10,22 +11,58 @@ from ..engine.worktrees import WorktreeManager
 from ..models import Finding
 
 
+def _environment_mismatch(base: RunEvidence, head: RunEvidence) -> bool:
+    fingerprints_differ = bool(base.environment_fingerprint and head.environment_fingerprint and base.environment_fingerprint != head.environment_fingerprint)
+    lockfiles_differ = bool(base.dependency_lock_hash and head.dependency_lock_hash and base.dependency_lock_hash != head.dependency_lock_hash)
+    return fingerprints_differ or lockfiles_differ
+
+
+def _unreproducible(run: RunEvidence) -> bool:
+    output = run.output_tail.lower()
+    markers = (
+        "agentproof: command timed out",
+        "agentproof: unable to execute command",
+        "command not found",
+        "no module named",
+        "modulenotfounderror",
+        "importerror",
+        "dependency resolution failed",
+    )
+    return run.exit_code in {124, 127} or any(marker in output for marker in markers)
+
+
 def classify(command: str, base: RunEvidence, head: RunEvidence) -> dict[str, object]:
-    if not base.passed and head.passed:
-        return {"command": command, "status": "PROVEN", "base": asdict(base), "head": asdict(head), "interpretation": "The proof test failed on BASE and passed on HEAD."}
-    if base.passed and head.passed:
-        return {"command": command, "status": "INCONCLUSIVE", "base": asdict(base), "head": asdict(head), "interpretation": "The proof test passed on both revisions and does not demonstrate a fix."}
-    if not base.passed and not head.passed:
-        return {"command": command, "status": "NOT_FIXED", "base": asdict(base), "head": asdict(head), "interpretation": "The proof test failed on both revisions."}
-    return {"command": command, "status": "REGRESSION", "base": asdict(base), "head": asdict(head), "interpretation": "The proof test passed on BASE but failed on HEAD."}
+    if _environment_mismatch(base, head):
+        status = "ENVIRONMENT_MISMATCH"
+        interpretation = "BASE and HEAD were evaluated under materially different environments."
+    elif _unreproducible(base) or _unreproducible(head):
+        status = "UNREPRODUCIBLE"
+        interpretation = "The proof test could not be executed reproducibly."
+    elif not base.passed and head.passed:
+        status = "PROVEN"
+        interpretation = "The proof test failed on BASE and passed on HEAD."
+    elif base.passed and head.passed:
+        status = "INCONCLUSIVE"
+        interpretation = "The proof test passed on both revisions and does not demonstrate a fix."
+    elif not base.passed and not head.passed:
+        status = "NOT_FIXED"
+        interpretation = "The proof test failed on both revisions."
+    else:
+        status = "REGRESSION"
+        interpretation = "The proof test passed on BASE but failed on HEAD."
+    return {"command": command, "status": status, "base": asdict(base), "head": asdict(head), "interpretation": interpretation}
 
 
 def findings_for_proof(result: dict[str, object]) -> list[Finding]:
     status = result["status"]
     if status == "INCONCLUSIVE":
         return [Finding("AP201", "medium", "The proof test passes on both base and PR revisions.", evidence=[str(result["command"])])]
-    if status in {"NOT_FIXED", "UNREPRODUCIBLE"}:
+    if status == "NOT_FIXED":
         return [Finding("AP202", "high", "The proof test does not pass on the PR revision.", evidence=[str(result["command"])])]
+    if status == "UNREPRODUCIBLE":
+        return [Finding("AP204", "high", "The proof test could not be executed reproducibly.", evidence=[str(result["command"])])]
+    if status == "ENVIRONMENT_MISMATCH":
+        return [Finding("AP205", "medium", "BASE and HEAD used materially different environments.", evidence=[str(result["command"])])]
     if status == "REGRESSION":
         return [Finding("AP203", "high", "The proof test passed on base and failed on the PR revision.", evidence=[str(result["command"])])]
     return []
@@ -37,12 +74,13 @@ def discover_new_tests(changed_files: list[str]) -> list[str]:
 
 def targeted_command(test_command: str, test_file: str) -> str:
     lowered = test_command.lower()
+    quoted_file = shlex.quote(test_file)
     if "pytest" in lowered or test_file.endswith(".py"):
-        return f"pytest -q {test_file}"
+        return f"pytest -q {quoted_file}"
     if "vitest" in lowered or test_file.endswith((".ts", ".tsx")):
-        return f"npx vitest run {test_file}"
+        return f"npx vitest run {quoted_file}"
     if "jest" in lowered or test_file.endswith((".js", ".jsx")):
-        return f"npx jest {test_file} --runInBand"
+        return f"npx jest {quoted_file} --runInBand"
     return test_command
 
 
