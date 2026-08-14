@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentproof.dev/schemas/policy-v1.schema.json",
+  "title": "AgentProof Policy v1",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "version": {"const": 1},
+    "verification": {"type": "object", "properties": {"test_command": {"type": ["string", "null"]}, "require_tests": {"type": "boolean"}, "require_proof_tests": {"type": "boolean"}}},
+    "integrity": {"type": "object", "additionalProperties": {"enum": ["ignore", "warning", "review", "block"]}},
+    "coverage": {"type": "object", "properties": {"minimum_delta": {"type": "number"}}},
+    "dependencies": {"type": "object", "properties": {"lockfile_changes": {"enum": ["ignore", "warning", "review", "block"]}}},
+    "network": {"type": "object", "properties": {"mode": {"enum": ["deny", "install-only", "allow"]}, "domains": {"type": "array", "items": {"type": "string"}}}},
+    "receipt": {"type": "object", "properties": {"signature_required": {"type": "boolean"}}}
+  },
+  "additionalProperties": true
+}

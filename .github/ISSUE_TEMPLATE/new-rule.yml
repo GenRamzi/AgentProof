@@ -1,0 +1,25 @@
+name: New verification rule
+description: Propose a deterministic integrity or proof rule.
+title: "[new-rule] "
+labels: [new-rule]
+body:
+  - type: input
+    id: rule
+    attributes:
+      label: Proposed AP rule ID
+      placeholder: APxxx
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and rationale
+    validations:
+      required: true
+  - type: textarea
+    id: fixture
+    attributes:
+      label: Fixture plan
+      description: Explain the adversarial and legitimate examples that will cover the rule.
+    validations:
+      required: true

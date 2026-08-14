@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentproof.dev/schemas/receipt-v1.schema.json",
+  "title": "AgentProof Receipt v1",
+  "type": "object",
+  "required": ["schema", "subject", "verdict", "claims", "proof_tests", "test_runs", "integrity_findings", "environment", "policy", "digest"],
+  "properties": {
+    "schema": {"const": "agentproof.receipt/v1"},
+    "subject": {"type": "object", "required": ["repository", "base_sha", "head_sha"], "additionalProperties": {"type": "string"}},
+    "verdict": {"enum": ["VERIFIED", "INCONCLUSIVE", "BLOCKED"]},
+    "claims": {"type": "array", "items": {"$ref": "claim-v1.schema.json"}},
+    "proof_tests": {"type": "array", "items": {"type": "object"}},
+    "test_runs": {"type": "array", "items": {"type": "object"}},
+    "integrity_findings": {"type": "array", "items": {"type": "object", "required": ["rule", "severity", "message"]}},
+    "environment": {"type": "object"},
+    "policy": {"type": "object"},
+    "evidence_graph": {"type": "object"},
+    "digest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "signature": {"type": ["object", "null"]}
+  },
+  "additionalProperties": true
+}

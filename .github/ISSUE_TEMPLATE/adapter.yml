@@ -1,0 +1,25 @@
+name: New language adapter
+description: Propose support for a test runner or language adapter.
+title: "[adapter] "
+labels: [adapter, new-language]
+body:
+  - type: input
+    id: language
+    attributes:
+      label: Language and runner
+    validations:
+      required: true
+  - type: textarea
+    id: discovery
+    attributes:
+      label: Configuration discovery
+      description: List files and commands that identify the canonical suite.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Output evidence
+      description: Provide representative pass, fail, skip, and error output.
+    validations:
+      required: true

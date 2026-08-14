@@ -13,7 +13,7 @@ from .checks import audit_diff
 from .models import ProofTestResult, TestRun, VerificationReceipt
 from .runner import run_command
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 
 def checkout(repo: Path, ref: str, worktree: Path) -> None:

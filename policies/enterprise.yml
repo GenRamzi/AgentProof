@@ -1,0 +1,22 @@
+version: 1
+verification:
+  require_tests: true
+  require_proof_tests: true
+integrity:
+  deleted_tests: block
+  new_skips: block
+  assertion_weakening: block
+  ci_changes: block
+  dependency_expansion: block
+  api_contract_changes: block
+coverage:
+  minimum_delta: 0
+dependencies:
+  lockfile_changes: block
+network:
+  mode: deny
+  domains: []
+security:
+  isolated_runner_required: true
+receipt:
+  signature_required: true

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentproof.dev/schemas/claim-v1.schema.json",
+  "title": "AgentProof Claim v1",
+  "type": "object",
+  "required": ["type", "status"],
+  "properties": {
+    "type": {"type": "string"},
+    "status": {"enum": ["PROVEN", "SUPPORTED", "UNPROVEN", "CONTRADICTED", "NOT_APPLICABLE"]},
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "explanation": {"type": "string"}
+  },
+  "additionalProperties": false
+}

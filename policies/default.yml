@@ -1,0 +1,18 @@
+version: 1
+verification:
+  require_tests: true
+  require_proof_tests: false
+integrity:
+  deleted_tests: warning
+  new_skips: warning
+  assertion_weakening: review
+  ci_changes: review
+coverage:
+  minimum_delta: 0
+dependencies:
+  lockfile_changes: review
+network:
+  mode: deny
+  domains: []
+receipt:
+  signature_required: false

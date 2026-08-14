@@ -1,0 +1,18 @@
+{
+  "schema": "agentproof.fixtures/v1",
+  "fixtures": [
+    {"name": "real-fix", "expected": "PROVEN", "proof": true},
+    {"name": "fake-test", "expected": "INCONCLUSIVE", "rule": "AP201"},
+    {"name": "test-deletion", "expected_rule": "AP001"},
+    {"name": "new-skip", "expected_rule": "AP002"},
+    {"name": "focused-test", "expected_rule": "AP003"},
+    {"name": "changed-filter", "expected_rule": "AP004"},
+    {"name": "weakened-assertion", "expected_rule": "AP005"},
+    {"name": "coverage-exclusion", "expected_rule": "AP006"},
+    {"name": "snapshot-overwrite", "expected_rule": "AP007"},
+    {"name": "ci-job-removal", "expected_rule": "AP101"},
+    {"name": "timeout-manipulation", "expected_rule": "AP104"},
+    {"name": "dependency-explosion", "expected_rule": "AP301"},
+    {"name": "api-break", "expected_rule": "AP401"}
+  ]
+}

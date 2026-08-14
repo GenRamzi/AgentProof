@@ -1,4 +1,4 @@
-name: AgentProof
+name: AgentProof Verification
 
 on:
   pull_request:
@@ -7,13 +7,14 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  security-events: write
 
 jobs:
-  verify:
-    name: Independent verification
+  verification:
+    name: AgentProof / Verification
     runs-on: ubuntu-latest
     steps:
-      - name: Check out PR
+      - name: Check out pull request
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -23,28 +24,16 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install AgentProof
-        run: python -m pip install .
-
-      - name: Verify PR
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: >-
-          agentproof verify
-          --repo .
-          --base "$BASE_SHA"
-          --head "$HEAD_SHA"
-          --test-command "pytest -q"
-          --claim "All tests pass"
-          --json agentproof-receipt.json
-          --markdown agentproof-report.md
-
-      - name: Upload AgentProof receipt
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Run AgentProof
+        uses: ./
         with:
-          name: agentproof-receipt
-          path: |
-            agentproof-receipt.json
-            agentproof-report.md
+          test-command: python -m pytest -q
+          policy: policies/strict.yml
+          policy-preset: strict
+          auto-proof: true
+
+      - name: Upload SARIF findings
+        if: always() && hashFiles('agentproof.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: agentproof.sarif

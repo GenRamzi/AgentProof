@@ -1,0 +1,73 @@
+name: AgentProof
+
+description: Independent verification for AI-generated software
+inputs:
+  test-command:
+    description: Canonical test command. Leave empty for automatic discovery.
+    required: false
+    default: ""
+  proof-test:
+    description: Proof-test command. May be supplied multiple times through a newline-separated value.
+    required: false
+    default: ""
+  policy:
+    description: Path to agentproof.yml or another policy file.
+    required: false
+    default: ""
+  policy-preset:
+    description: Policy preset: default, strict, or enterprise.
+    required: false
+    default: default
+  timeout:
+    description: Per-command timeout in seconds.
+    required: false
+    default: "600"
+  auto-proof:
+    description: Automatically transplant newly added test files onto BASE.
+    required: false
+    default: "true"
+outputs:
+  verdict:
+    description: AgentProof verdict.
+    value: ${{ steps.verify.outputs.verdict }}
+  receipt:
+    description: Path to the generated receipt.
+    value: agentproof-receipt.json
+runs:
+  using: composite
+  steps:
+    - id: install
+      name: Install AgentProof Core
+      shell: bash
+      run: python -m pip install .
+    - id: verify
+      name: Run independent verification
+      shell: bash
+      env:
+        AP_TEST_COMMAND: ${{ inputs.test-command }}
+        AP_PROOF_TESTS: ${{ inputs.proof-test }}
+        AP_POLICY: ${{ inputs.policy }}
+        AP_POLICY_PRESET: ${{ inputs.policy-preset }}
+        AP_TIMEOUT: ${{ inputs.timeout }}
+        AP_AUTO_PROOF: ${{ inputs.auto-proof }}
+      run: |
+        set +e
+        args=(verify --repo . --base "${{ github.event.pull_request.base.sha || github.event.before }}" --head "${{ github.event.pull_request.head.sha || github.sha }}" --policy-preset "$AP_POLICY_PRESET" --timeout "$AP_TIMEOUT" --json agentproof-receipt.json --markdown agentproof-report.md --sarif agentproof.sarif)
+        if [ -n "$AP_TEST_COMMAND" ]; then args+=(--test-command "$AP_TEST_COMMAND"); fi
+        if [ -n "$AP_POLICY" ]; then args+=(--policy "$AP_POLICY"); fi
+        if [ "$AP_AUTO_PROOF" = "false" ]; then args+=(--no-auto-proof); fi
+        while IFS= read -r proof; do [ -n "$proof" ] && args+=(--proof-test "$proof"); done <<< "$AP_PROOF_TESTS"
+        python -m agentproof "${args[@]}"
+        status=$?
+        verdict=$(python -c 'import json; print(json.load(open("agentproof-receipt.json"))["verdict"])')
+        echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+        exit $status
+    - name: Upload AgentProof artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: agentproof-verification
+        path: |
+          agentproof-receipt.json
+          agentproof-report.md
+          agentproof.sarif

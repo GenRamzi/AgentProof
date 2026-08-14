@@ -1,0 +1,39 @@
+name: AgentProof
+
+description: Independent verification for AI-generated software
+inputs:
+  test-command:
+    description: Canonical test command.
+    required: false
+    default: ""
+  proof-test:
+    description: Newline-separated proof-test commands.
+    required: false
+    default: ""
+  policy:
+    description: Policy file path.
+    required: false
+    default: ""
+  policy-preset:
+    description: default, strict, or enterprise.
+    required: false
+    default: default
+  timeout:
+    description: Per-command timeout in seconds.
+    required: false
+    default: "600"
+  auto-proof:
+    description: Automatically discover and transplant new tests.
+    required: false
+    default: "true"
+runs:
+  using: composite
+  steps:
+    - uses: ./action
+      with:
+        test-command: ${{ inputs.test-command }}
+        proof-test: ${{ inputs.proof-test }}
+        policy: ${{ inputs.policy }}
+        policy-preset: ${{ inputs.policy-preset }}
+        timeout: ${{ inputs.timeout }}
+        auto-proof: ${{ inputs.auto-proof }}
