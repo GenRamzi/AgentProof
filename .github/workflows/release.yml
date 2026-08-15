@@ -62,6 +62,8 @@ jobs:
           python -m pip install --force-reinstall --no-deps dist/*.whl
           cd /tmp
           agentproof explain AP001
+      - name: Generate SBOM
+        run: python tools/generate_sbom.py dist/SBOM.spdx.json
       - name: Generate checksums
         run: sha256sum dist/* > dist/SHA256SUMS
       - name: Attest distributions

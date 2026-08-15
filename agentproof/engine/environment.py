@@ -44,6 +44,8 @@ def fingerprint(repo: Path, network_mode: str = "deny", runner_type: str = "loca
         for key in ("CI", "GITHUB_ACTIONS", "GITHUB_RUN_ID", "GITHUB_REPOSITORY", "GITHUB_SHA")
         if key in os.environ
     }
+    lock_payload = json.dumps(locks, sort_keys=True, separators=(",", ":")).encode()
+    lock_hash = "sha256:" + hashlib.sha256(lock_payload).hexdigest() if locks else ""
     data: dict[str, object] = {
         "os": platform.system(),
         "os_release": platform.release(),
@@ -53,12 +55,14 @@ def fingerprint(repo: Path, network_mode: str = "deny", runner_type: str = "loca
         "rust": _version("rustc --version"),
         "go": _version("go version"),
         "dependency_lock_hashes": locks,
+        "dependency_lock_hash": lock_hash,
         "environment_variables": environment_allowlist,
         "container_digest": os.environ.get("AGENTPROOF_CONTAINER_DIGEST", "unknown"),
         "network_mode": network_mode,
         "runner_type": runner_type,
         "agentproof_version": __version__,
     }
-    canonical = json.dumps(data, sort_keys=True, separators=(",", ":")).encode()
+    runtime_data = {key: value for key, value in data.items() if key not in {"dependency_lock_hashes", "dependency_lock_hash"}}
+    canonical = json.dumps(runtime_data, sort_keys=True, separators=(",", ":")).encode()
     data["fingerprint"] = "sha256:" + hashlib.sha256(canonical).hexdigest()
     return data

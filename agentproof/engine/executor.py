@@ -7,6 +7,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from ..adapters.registry import adapter_for
 from .evidence import RunEvidence
 
 
@@ -14,17 +15,23 @@ def _hash(text: str) -> str:
     return "sha256:" + hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
 
 
-def _test_counts(output: str) -> dict[str, int]:
+def _test_counts(output: str, command: str = "", cwd: Path | None = None, exit_code: int = 0) -> dict[str, int]:
+    adapter = adapter_for(command, cwd)
+    if adapter is not None:
+        return adapter.parse_result(output, exit_code)
     counts: dict[str, int] = {}
     patterns = {"passed": r"(\d+)\s+passed", "failed": r"(\d+)\s+failed", "skipped": r"(\d+)\s+skipped", "error": r"(\d+)\s+errors?"}
     for key, pattern in patterns.items():
         match = re.search(pattern, output, re.IGNORECASE)
         if match:
-            counts[key] = int(match.group(1))
+            try:
+                counts[key] = int(match.group(1))
+            except (TypeError, ValueError, IndexError):
+                counts[key] = 1
     return counts
 
 
-def execute(command: str, cwd: Path, revision: str, commit_sha: str = "", environment_fingerprint: str = "", timeout: int = 600) -> RunEvidence:
+def execute(command: str, cwd: Path, revision: str, commit_sha: str = "", environment_fingerprint: str = "", timeout: int = 600, dependency_lock_hash: str = "") -> RunEvidence:
     started = time.monotonic()
     env = {**os.environ, "CI": "true", "AGENTPROOF_NETWORK_MODE": os.environ.get("AGENTPROOF_NETWORK_MODE", "deny")}
     try:
@@ -47,7 +54,8 @@ def execute(command: str, cwd: Path, revision: str, commit_sha: str = "", enviro
         stdout_hash=_hash(stdout),
         stderr_hash=_hash(stderr),
         output_tail=(stdout + ("\n" + stderr if stderr else ""))[-12000:],
-        test_counts=_test_counts(stdout + "\n" + stderr),
+        test_counts=_test_counts(stdout + "\n" + stderr, command, cwd, exit_code),
         environment_fingerprint=environment_fingerprint,
         commit_sha=commit_sha,
+        dependency_lock_hash=dependency_lock_hash,
     )

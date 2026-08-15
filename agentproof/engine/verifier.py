@@ -48,6 +48,7 @@ def _test_run(run: Any) -> TestRun:
         test_counts=run.test_counts,
         environment_fingerprint=run.environment_fingerprint,
         commit_sha=run.commit_sha,
+        dependency_lock_hash=run.dependency_lock_hash,
     )
 
 
@@ -79,6 +80,8 @@ def verify_core(repo: Path, base: str, head: str, test_command: str | None = Non
     diff = diff_by_file(repo, base, head)
     command = discover_canonical_command(repo, test_command)
     environment: dict[str, Any] = {}
+    base_environment: dict[str, Any] = {}
+    head_environment: dict[str, Any] = {}
     findings: list[Finding] = []
     findings.extend(detect_added_skips(diff))
     findings.extend(detect_focused_tests(diff))
@@ -99,29 +102,39 @@ def verify_core(repo: Path, base: str, head: str, test_command: str | None = Non
         base_path = worktrees.create(base, "base")
         head_path = worktrees.create(head, "head")
         runner_type = "github-actions" if os.environ.get("GITHUB_ACTIONS", "").lower() == "true" else "local"
-        environment = fingerprint(head_path, network_mode=network_mode, runner_type=runner_type)
+        base_environment = fingerprint(base_path, network_mode=network_mode, runner_type=runner_type)
+        head_environment = fingerprint(head_path, network_mode=network_mode, runner_type=runner_type)
+        environment = {
+            "base": base_environment,
+            "head": head_environment,
+            "comparison": {
+                "toolchain_equal": base_environment.get("fingerprint") == head_environment.get("fingerprint"),
+                "runner_equal": base_environment.get("runner_type") == head_environment.get("runner_type"),
+                "lockfiles_equal": base_environment.get("dependency_lock_hash") == head_environment.get("dependency_lock_hash"),
+            },
+        }
         base_setup_command = discover_setup_command(base_path, setup_command)
         head_setup_command = discover_setup_command(head_path, setup_command)
-        base_setup = execute(base_setup_command, base_path, "BASE_SETUP", base, str(environment.get("fingerprint", "")), timeout) if base_setup_command else None
-        head_setup = execute(head_setup_command, head_path, "HEAD_SETUP", head, str(environment.get("fingerprint", "")), timeout) if head_setup_command else None
+        base_setup = execute(base_setup_command, base_path, "BASE_SETUP", base, str(base_environment.get("fingerprint", "")), timeout, str(base_environment.get("dependency_lock_hash", ""))) if base_setup_command else None
+        head_setup = execute(head_setup_command, head_path, "HEAD_SETUP", head, str(head_environment.get("fingerprint", "")), timeout, str(head_environment.get("dependency_lock_hash", ""))) if head_setup_command else None
         if base_setup:
             setup_runs["base"] = _test_run(base_setup)
         if head_setup:
             setup_runs["head"] = _test_run(head_setup)
         setup_failed = bool((base_setup and not base_setup.passed) or (head_setup and not head_setup.passed))
         if base_setup and not base_setup.passed:
-            base_run = _test_run(execute("printf '%s' 'AgentProof: setup failed; test command not run'", base_path, "BASE", base, str(environment.get("fingerprint", "")), timeout=1))
+            base_run = _test_run(execute("printf '%s' 'AgentProof: setup failed; test command not run'", base_path, "BASE", base, str(base_environment.get("fingerprint", "")), timeout=1, dependency_lock_hash=str(base_environment.get("dependency_lock_hash", ""))))
             base_run.exit_code = 125
             base_run.output_tail = base_setup.output_tail
         else:
-            base_evidence = execute(command, base_path, "BASE", base, str(environment.get("fingerprint", "")), timeout)
+            base_evidence = execute(command, base_path, "BASE", base, str(base_environment.get("fingerprint", "")), timeout, str(base_environment.get("dependency_lock_hash", "")))
             base_run = _test_run(base_evidence)
         if head_setup and not head_setup.passed:
-            head_run = _test_run(execute("printf '%s' 'AgentProof: setup failed; test command not run'", head_path, "HEAD", head, str(environment.get("fingerprint", "")), timeout=1))
+            head_run = _test_run(execute("printf '%s' 'AgentProof: setup failed; test command not run'", head_path, "HEAD", head, str(head_environment.get("fingerprint", "")), timeout=1, dependency_lock_hash=str(head_environment.get("dependency_lock_hash", ""))))
             head_run.exit_code = 125
             head_run.output_tail = head_setup.output_tail
         else:
-            head_evidence = execute(command, head_path, "HEAD", head, str(environment.get("fingerprint", "")), timeout)
+            head_evidence = execute(command, head_path, "HEAD", head, str(head_environment.get("fingerprint", "")), timeout, str(head_environment.get("dependency_lock_hash", "")))
             head_run = _test_run(head_evidence)
         findings.extend(detect_assertion_weakening(base_path, head_path, changed))
         for relative in changed:
@@ -133,14 +146,20 @@ def verify_core(repo: Path, base: str, head: str, test_command: str | None = Non
     mode = proof_mode(policy)
     claim_requires_proof = any(any(token in claim.lower() for token in ("bug", "regression", "fix")) for claim in claims)
     proof_required = bool(proof_commands) or mode == "required" or (mode == "auto" and bool(discovered or claim_requires_proof))
-    proof_results, proof_findings = run_proof_tests(repo, base, head, proof_commands, timeout, str(environment.get("fingerprint", ""))) if proof_commands else ([], [])
+    proof_results: list[dict[str, object]] = []
+    proof_findings: list[Finding] = []
+    proof_setup_runs: dict[str, Any] = {}
+    if proof_commands:
+        proof_results, proof_findings, proof_setup_runs = run_proof_tests(repo, base, head, proof_commands, timeout, base_environment, head_environment, setup_command)
+        setup_runs.update({name: _test_run(run) for name, run in proof_setup_runs.items()})
     findings.extend(proof_findings)
     if setup_failed:
         findings.append(Finding("AP204", "medium", "Repository setup failed before canonical tests could run; reproducibility is unproven.", category="reproducibility", evidence=[run.output_tail for run in setup_runs.values() if run.exit_code != 0]))
     if auto_proof and discovered:
-        transplanted, transplanted_findings = run_transplanted_proofs(repo, base, head, discovered, command, timeout, str(environment.get("fingerprint", "")))
+        transplanted, transplanted_findings, transplanted_setup_runs = run_transplanted_proofs(repo, base, head, discovered, command, timeout, base_environment, head_environment, setup_command)
         proof_results.extend(transplanted)
         findings.extend(transplanted_findings)
+        setup_runs.update({name: _test_run(run) for name, run in transplanted_setup_runs.items()})
 
     security_policy = policy.get("security", {}) if policy else {}
     if security_policy.get("isolated_runner_required") and os.environ.get("AGENTPROOF_ISOLATED_RUNNER", "").lower() != "true":

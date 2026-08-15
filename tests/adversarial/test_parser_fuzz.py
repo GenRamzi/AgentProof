@@ -9,7 +9,7 @@ import pytest
 
 from agentproof.engine.worktrees import WorktreeManager
 from agentproof.models import TestRun, VerificationReceipt
-from agentproof.policy.evaluator import action_for, load_policy
+from agentproof.policy.evaluator import load_policy
 from agentproof.receipt.verify import verify_receipt, verify_receipt_data
 
 
@@ -61,12 +61,19 @@ def test_invalid_digests_and_duplicate_claims_are_not_accepted() -> None:
     assert reason.startswith("schema-invalid:")
 
 
-def test_unknown_policy_keys_and_invalid_actions_are_safe(tmp_path: Path) -> None:
+def test_unknown_policy_keys_and_invalid_actions_fail_closed(tmp_path: Path) -> None:
     path = tmp_path / "agentproof.yml"
     path.write_text("version: 1\nfuture_key: [unicode, \"\u03bb\"]\nintegrity:\n  deleted_tests: explode\n", encoding="utf-8")
-    policy = load_policy(path)
-    assert policy["future_key"] == ["unicode", "λ"]
-    assert action_for(policy, "AP001") == "warning"
+    with pytest.raises(ValueError, match="Unknown top-level policy keys"):
+        load_policy(path)
+
+    path.write_text("version: 1\nintegrity:\n  deleted_tests: explode\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="Invalid policy action"):
+        load_policy(path)
+
+    path.write_text("version: 1\nverification:\n  proof_tests: requred\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="Invalid verification.proof_tests"):
+        load_policy(path)
 
 
 def test_invalid_git_ref_is_rejected(tmp_path: Path) -> None:

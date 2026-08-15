@@ -1,8 +1,9 @@
 version: 1
 verification:
-  test_command: python3 -m pytest -q
+  setup_command: python -m pip install -e ".[dev]"
+  test_command: python -m pytest -q
   require_tests: true
-  require_proof_tests: false
+  proof_tests: auto
 integrity:
   deleted_tests: warning
   new_skips: warning

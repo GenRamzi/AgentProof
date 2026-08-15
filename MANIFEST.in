@@ -1,0 +1,14 @@
+include LICENSE
+include README.md
+include CHANGELOG.md
+include SECURITY.md
+include action.yml
+include pyproject.toml
+recursive-include agentproof *.json
+recursive-include policies *.yml
+recursive-include schemas *.json
+recursive-include tests *.py
+recursive-include fixtures *
+recursive-include examples *
+recursive-include tools *.py
+recursive-include docs *.md

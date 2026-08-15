@@ -30,10 +30,6 @@ inputs:
     description: Automatically discover and transplant new tests.
     required: false
     default: "true"
-  upload-sarif:
-    description: Upload generated SARIF findings to GitHub code scanning.
-    required: false
-    default: "false"
 outputs:
   verdict:
     description: AgentProof verdict.
@@ -88,8 +84,3 @@ runs:
           agentproof-receipt.json
           agentproof-report.md
           agentproof.sarif
-    - name: Upload SARIF findings
-      if: always() && inputs.upload-sarif == 'true' && hashFiles('agentproof.sarif') != ''
-      uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
-      with:
-        sarif_file: agentproof.sarif

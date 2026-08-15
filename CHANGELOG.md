@@ -2,7 +2,7 @@
 
 ## [Unreleased] — Post-RC hardening
 
-Added a formal `setup-command` phase that runs independently in BASE and HEAD worktrees, records `setup_runs` in Receipt v1, and reports setup failures as `INCONCLUSIVE` with AP204. Added automatic setup discovery for Python, npm, pnpm, Yarn, uv, Poetry, Cargo, and Go. Replaced unconditional strict Proof Test enforcement with `proof_tests: off|auto|required`, made the public demo repository visible, made main protection solo-maintainer compatible, and updated CodeQL and artifact/provenance action pins.
+Moved main to unpublished `0.2.0rc3.dev0` so it cannot emit a different artifact under the already-published RC2 version. Added a formal `setup-command` phase for canonical, manual, and transplanted Proof Tests, with `setup_runs` evidence and AP204 unreproducible semantics. Added separate BASE/HEAD environment fingerprints and lock hashes with AP205 runtime-only mismatch semantics. Added strict `proof_tests: off|auto|required` policy validation, synchronized Receipt schemas, resilient ecosystem adapters, explicit MANIFEST.in contents, fresh sdist/twine gates, SPDX SBOM generation, Python 3.14 CI, and secure two-job SARIF publication with `persist-credentials: false`.
 
 The stable release remains blocked until a distinct package and product identity is selected because the `agentproof` PyPI distribution is occupied by an unrelated project.
 

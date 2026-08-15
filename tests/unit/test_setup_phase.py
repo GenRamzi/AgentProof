@@ -81,3 +81,31 @@ def test_strict_auto_does_not_require_proof_for_readme_only_change(tmp_path: Pat
     assert receipt.verdict == "VERIFIED"
     assert receipt.evidence["proof_tests_mode"] == "auto"
     assert receipt.evidence["proof_tests_required"] is False
+
+
+def test_manual_proof_runs_setup_and_records_evidence(tmp_path: Path):
+    repo, base, head = _repo(tmp_path)
+    receipt = verify_core(repo, base, head, "python3 -m pytest -q", ["python3 -m pytest -q"], policy=preset("default"), setup_command="true", timeout=30)
+    assert "proof-base" in receipt.setup_runs
+    assert "proof-head" in receipt.setup_runs
+    assert receipt.setup_runs["proof-base"].exit_code == 0
+    assert receipt.proof_tests
+
+
+def test_manual_proof_setup_failure_is_unreproducible(tmp_path: Path):
+    repo, base, head = _repo(tmp_path)
+    receipt = verify_core(repo, base, head, "python3 -m pytest -q", ["python3 -m pytest -q"], policy=preset("default"), setup_command="false", timeout=30)
+    assert receipt.proof_tests[0]["status"] == "UNREPRODUCIBLE"
+    assert any(finding.rule == "AP204" for finding in receipt.findings)
+
+
+def test_transplanted_proof_runs_setup(tmp_path: Path):
+    repo, base, _ = _repo(tmp_path)
+    (repo / "tests").mkdir()
+    (repo / "tests" / "test_new.py").write_text("def test_new():\n    assert True\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tests/test_new.py"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "new test"], cwd=repo, check=True)
+    head = _git(repo, "rev-parse", "HEAD")
+    receipt = verify_core(repo, base, head, "python3 -m pytest -q", policy=preset("default"), setup_command="true", timeout=30)
+    assert any(name.startswith("transplant-") for name in receipt.setup_runs)
+    assert receipt.proof_tests

@@ -2,11 +2,11 @@
 
 ## Release-candidate channel
 
-The repository currently identifies itself as `0.2.0rc2`. This follow-up release candidate corrects the environment metadata discovered during RC1 integration testing; the previously published `v0.2.0rc1` tag remains immutable. The immutable tag for this source must be `v0.2.0rc2`, and the release workflow rejects any tag that does not exactly match the package version.
+The repository main branch currently identifies itself as unpublished `0.2.0rc3.dev0`. The previously published `v0.2.0rc1` and `v0.2.0rc2` tags remain immutable historical release candidates; the release workflow rejects any tag that does not exactly match the package version.
 
 ## RC gates
 
-Before publishing a final RC, run a clean install, compile check, ruff, mypy, Python 3.10–3.13 matrix, full tests, fixture harness, coverage threshold, installed-wheel smoke test, receipt schema and digest verification, external Action-path E2E, SARIF generation, and `pip-audit`. Each real repository run must provide a `setup-command` or use automatic ecosystem setup discovery; BASE and HEAD setup evidence must appear in `setup_runs`. The public demo repository uses `GenRamzi/AgentProof@v0.2.0rc2` and exercises AP001/AP002.
+Before publishing a final RC, run a clean install, compile check, ruff, mypy, Python 3.10–3.14 matrix, full tests, fixture harness, coverage threshold, installed-wheel smoke test, fresh sdist install, twine metadata validation, SBOM validation, receipt schema and digest verification, external Action-path E2E, SARIF generation, and `pip-audit`. Each real repository run must provide a `setup-command` or use automatic ecosystem setup discovery; BASE, HEAD, manual-proof, and transplanted-proof setup evidence must appear in `setup_runs`. The public demo remains on historical RC2 until a renamed RC is published.
 
 The RC should be exercised in three to five real Python repositories and at least one JavaScript/TypeScript repository. Those runs should be recorded as anonymized compatibility evidence rather than presented as fabricated adoption. `proof_tests: auto` should require Proof Tests for new regression tests or explicit bug-fix claims, but not for documentation or ordinary dependency updates.
 

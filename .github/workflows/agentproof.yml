@@ -4,20 +4,19 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-permissions:
-  contents: read
-  pull-requests: read
-  security-events: write
-
 jobs:
   verification:
     name: AgentProof / Verification
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Check out pull request
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -36,8 +35,22 @@ jobs:
           policy-preset: strict
           auto-proof: true
 
+  sarif:
+    name: AgentProof / SARIF Upload
+    needs: verification
+    if: always() && needs.verification.result != 'cancelled'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Download AgentProof artifacts
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: agentproof-verification
+
       - name: Upload SARIF findings
-        if: always() && hashFiles('agentproof.sarif') != ''
+        if: hashFiles('agentproof.sarif') != ''
         uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
         with:
           sarif_file: agentproof.sarif

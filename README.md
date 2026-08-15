@@ -168,15 +168,16 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
-      # Release-candidate example; pin to v0.2.0 or a full SHA after stable release.
+          persist-credentials: false
+      # Historical RC2 example; use a new immutable RC tag after the rename blocker is closed.
       - uses: GenRamzi/AgentProof@v0.2.0rc2
         with:
           setup-command: python -m pip install -e ".[dev]"
           test-command: pytest -q
-          policy: policies/strict.yml
+          policy-preset: strict
 ```
 
-The included workflow uses the unprivileged `pull_request` event. The current release-candidate reference is `GenRamzi/AgentProof@v0.2.0rc2`; after stable release, pin `GenRamzi/AgentProof@v0.2.0` or a full commit SHA and do not depend on a moving default branch.
+The included workflow uses the unprivileged `pull_request` event. `v0.2.0rc2` is a historical immutable release candidate; the current `main` source is an unpublished development version and must not be used as a stable dependency. After the identity rename and a new RC, pin its immutable tag; after stable release, pin `GenRamzi/AgentProof@v0.2.0` or a full commit SHA. For a custom policy, `policy: .github/verification-policy.yml` refers to a file in the caller repository, not the AgentProof repository.
 
 It does not use `pull_request_target` to execute untrusted code, does not pass secrets to the PR, produces Markdown, JSON, and SARIF artifacts, and is explicit that the default CLI is not a security sandbox. `setup-command` runs independently in BASE and HEAD worktrees; setup failures are recorded as unreproducible evidence rather than misreported as test failures.
 
