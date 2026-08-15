@@ -40,7 +40,7 @@ include = ["agentproof*"]
 agentproof = ["schema_data/*.json"]
 
 [project.optional-dependencies]
-dev = ["build", "coverage", "mypy", "packaging", "pytest", "ruff", "pip-audit", "twine"]
+dev = ["build", "coverage", "mypy", "packaging", "pytest", "ruff", "pip-audit", "twine", "tomli>=2.0; python_version < '3.11'"]
 signing = ["cryptography>=42.0"]
 
 [tool.pytest.ini_options]

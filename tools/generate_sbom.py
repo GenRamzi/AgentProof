@@ -3,7 +3,12 @@ from __future__ import annotations
 import json
 import re
 import sys
-import tomllib
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
+    import tomli as tomllib
+
 from datetime import datetime, timezone
 from pathlib import Path
 
