@@ -43,7 +43,11 @@ def cmd_init(path: Path) -> int:
     if target.exists():
         print(f"Already exists: {target}")
         return 0
-    target.write_text("""version: 1\n\nverification:\n  test_command: null\n  require_tests: true\n  require_proof_tests: false\n\nintegrity:\n  deleted_tests: warning\n  new_skips: warning\n  assertion_weakening: review\n  ci_changes: review\n\nnetwork:\n  mode: deny\n  domains: []\n\nreceipt:\n  signature_required: false\n""", encoding="utf-8")
+    target.write_text("""version: 1\n\nverification:
+  test_command: null
+  setup_command: null
+  require_tests: true
+  proof_tests: auto\n\nintegrity:\n  deleted_tests: warning\n  new_skips: warning\n  assertion_weakening: review\n  ci_changes: review\n\nnetwork:\n  mode: deny\n  domains: []\n\nreceipt:\n  signature_required: false\n""", encoding="utf-8")
     print(f"Created {target}")
     return 0
 
@@ -55,10 +59,13 @@ def cmd_verify(args: argparse.Namespace) -> int:
     configured_command = args.test_command
     if configured_command is None and policy.get("verification", {}).get("test_command"):
         configured_command = policy["verification"]["test_command"]
+    setup_command = args.setup_command
+    if setup_command is None and policy.get("verification", {}).get("setup_command"):
+        setup_command = policy["verification"]["setup_command"]
     base, head = args.base, args.head
     if not base or not head:
         base, head = discover_refs(repo)
-    receipt = verify_core(repo, base, head, configured_command, args.proof_test, args.claim, policy, args.timeout, policy.get("network", {}).get("mode", "deny"), not args.no_auto_proof)
+    receipt = verify_core(repo, base, head, configured_command, args.proof_test, args.claim, policy, args.timeout, policy.get("network", {}).get("mode", "deny"), not args.no_auto_proof, setup_command)
     write_outputs(receipt, args.json, args.markdown, args.sarif)
     print(render_markdown(receipt))
     return 0 if receipt.verdict == "VERIFIED" else 1
@@ -120,6 +127,7 @@ def build_parser() -> argparse.ArgumentParser:
         item.add_argument("--base")
         item.add_argument("--head")
         item.add_argument("--test-command")
+        item.add_argument("--setup-command")
         item.add_argument("--proof-test", action="append", default=[])
         item.add_argument("--claim", action="append", default=[])
         item.add_argument("--policy", type=Path)

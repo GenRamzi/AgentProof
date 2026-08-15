@@ -71,6 +71,7 @@ class VerificationReceipt:
     evidence: dict[str, Any] = field(default_factory=dict)
     findings: list[Finding] = field(default_factory=list)
     test_runs: dict[str, TestRun] = field(default_factory=dict)
+    setup_runs: dict[str, TestRun] = field(default_factory=dict)
     proof_tests: list[ProofTestResult | dict[str, Any]] = field(default_factory=list)
     environment: dict[str, Any] = field(default_factory=dict)
     receipt_sha256: str = ""
@@ -85,6 +86,11 @@ class VerificationReceipt:
             item = asdict(run)
             item.setdefault("revision", name.upper())
             runs.append(item)
+        setup_runs = []
+        for name, run in self.setup_runs.items():
+            item = asdict(run)
+            item.setdefault("revision", name.upper())
+            setup_runs.append(item)
         return {
             "schema": "agentproof.receipt/v1",
             "receipt_id": self.receipt_id,
@@ -94,6 +100,7 @@ class VerificationReceipt:
             "claims": self.evidence.get("claims", self.claims),
             "proof_tests": [asdict(item) if isinstance(item, ProofTestResult) else item for item in self.proof_tests],
             "test_runs": runs,
+            "setup_runs": setup_runs,
             "integrity_findings": [asdict(item) for item in self.findings],
             "environment": self.environment,
             "policy": self.policy,
@@ -124,21 +131,25 @@ class VerificationReceipt:
         payload = deepcopy(data)
         subject = payload.get("subject", {})
         findings = [Finding(**item) for item in payload.get("integrity_findings", payload.get("findings", []))]
-        runs_data = payload.get("test_runs", [])
-        runs: dict[str, TestRun] = {}
-        iterable: Iterable[tuple[str, Any]]
-        if isinstance(runs_data, dict):
-            iterable = runs_data.items()
-        elif isinstance(runs_data, list):
-            iterable = ((str(item.get("revision", f"run-{index}")), item) for index, item in enumerate(runs_data) if isinstance(item, dict))
-        else:
-            iterable = ()
-        for name, item in iterable:
-            if not isinstance(item, dict):
-                continue
-            run_name = str(name).lower()
-            fields = {key: value for key, value in item.items() if key in TestRun.__dataclass_fields__}
-            runs[run_name] = TestRun(**fields)
+        def parse_runs(value: Any) -> dict[str, TestRun]:
+            parsed: dict[str, TestRun] = {}
+            iterable: Iterable[tuple[str, Any]]
+            if isinstance(value, dict):
+                iterable = value.items()
+            elif isinstance(value, list):
+                iterable = ((str(item.get("revision", f"run-{index}")), item) for index, item in enumerate(value) if isinstance(item, dict))
+            else:
+                iterable = ()
+            for name, item in iterable:
+                if not isinstance(item, dict):
+                    continue
+                run_name = str(name).lower()
+                fields = {key: value for key, value in item.items() if key in TestRun.__dataclass_fields__}
+                parsed[run_name] = TestRun(**fields)
+            return parsed
+
+        runs = parse_runs(payload.get("test_runs", []))
+        setup_runs = parse_runs(payload.get("setup_runs", []))
         return cls(
             schema_version=payload.get("schema", payload.get("schema_version", "agentproof.receipt/v1")),
             receipt_id=payload.get("receipt_id", ""),
@@ -151,6 +162,7 @@ class VerificationReceipt:
             evidence={"claims": payload.get("claims", [])},
             findings=findings,
             test_runs=runs,
+            setup_runs=setup_runs,
             proof_tests=payload.get("proof_tests", []),
             environment=payload.get("environment", {}),
             receipt_sha256=payload.get("digest", payload.get("receipt_sha256", "")),

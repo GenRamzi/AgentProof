@@ -11,6 +11,7 @@
     "claims": {"type": "array", "items": {"type": "object", "required": ["type", "status"], "properties": {"type": {"type": "string"}, "status": {"enum": ["PROVEN", "SUPPORTED", "UNPROVEN", "CONTRADICTED", "NOT_APPLICABLE"]}, "evidence": {"type": "array", "items": {"type": "string"}}, "explanation": {"type": "string"}}, "additionalProperties": false}},
     "proof_tests": {"type": "array", "items": {"type": "object"}},
     "test_runs": {"type": "array", "items": {"type": "object"}},
+    "setup_runs": {"type": "array", "items": {"type": "object"}},
     "integrity_findings": {"type": "array", "items": {"type": "object", "required": ["rule", "severity", "message"]}},
     "environment": {"type": "object"},
     "policy": {"type": "object"},

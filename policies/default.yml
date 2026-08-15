@@ -1,7 +1,9 @@
 version: 1
 verification:
+  test_command: null
+  setup_command: null
   require_tests: true
-  require_proof_tests: false
+  proof_tests: auto
 integrity:
   deleted_tests: warning
   new_skips: warning

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import __version__
-from ..adapters.discover import discover_canonical_command
+from ..adapters.discover import discover_canonical_command, discover_setup_command
 from ..checks.ci.github_actions import detect_ci_integrity
 from ..checks.common import changed_files, diff_by_file
 from ..checks.contracts.json_contract import compare_json_contracts
@@ -30,7 +30,7 @@ from ..engine.evidence import EvidenceGraph, EvidenceNode
 from ..engine.executor import execute
 from ..engine.worktrees import WorktreeManager
 from ..models import ClaimResult, Finding, TestRun, VerificationReceipt
-from ..policy.evaluator import evaluate_findings
+from ..policy.evaluator import evaluate_findings, proof_mode
 from ..proof.tests import discover_new_tests, run_proof_tests, run_transplanted_proofs
 
 VERSION = __version__
@@ -51,11 +51,14 @@ def _test_run(run: Any) -> TestRun:
     )
 
 
-def _claims(requested: list[str], base: TestRun, head: TestRun, proof_results: list[dict[str, object]], findings: list[Finding]) -> list[ClaimResult]:
+def _claims(requested: list[str], base: TestRun, head: TestRun, proof_results: list[dict[str, object]], findings: list[Finding], setup_failed: bool = False) -> list[ClaimResult]:
     normalized = {claim.lower().replace(" ", "_"): claim for claim in requested}
     results: list[ClaimResult] = []
     if not requested or any("test" in key and "pass" in key for key in normalized):
-        results.append(ClaimResult("tests_pass", "PROVEN" if head.passed else "CONTRADICTED", [f"HEAD exit code: {head.exit_code}"], "The canonical test command was independently executed on HEAD."))
+        if setup_failed:
+            results.append(ClaimResult("tests_pass", "UNPROVEN", ["Setup failed before the canonical test command could run."], "The repository could not be reproduced because setup failed."))
+        else:
+            results.append(ClaimResult("tests_pass", "PROVEN" if head.passed else "CONTRADICTED", [f"HEAD exit code: {head.exit_code}"], "The canonical test command was independently executed on HEAD."))
     if not requested or any("regression" in key for key in normalized):
         proven = [result for result in proof_results if result.get("status") == "PROVEN"]
         contradicted = [result for result in proof_results if result.get("status") in {"NOT_FIXED", "REGRESSION", "UNREPRODUCIBLE"}]
@@ -68,7 +71,7 @@ def _claims(requested: list[str], base: TestRun, head: TestRun, proof_results: l
     return results
 
 
-def verify_core(repo: Path, base: str, head: str, test_command: str | None = None, proof_commands: list[str] | None = None, claims: list[str] | None = None, policy: dict[str, Any] | None = None, timeout: int = 600, network_mode: str = "deny", auto_proof: bool = True) -> VerificationReceipt:
+def verify_core(repo: Path, base: str, head: str, test_command: str | None = None, proof_commands: list[str] | None = None, claims: list[str] | None = None, policy: dict[str, Any] | None = None, timeout: int = 600, network_mode: str = "deny", auto_proof: bool = True, setup_command: str | None = None) -> VerificationReceipt:
     proof_commands = proof_commands or []
     claims = claims or []
     policy = policy or {}
@@ -90,25 +93,52 @@ def verify_core(repo: Path, base: str, head: str, test_command: str | None = Non
     graph = EvidenceGraph()
     base_run: TestRun
     head_run: TestRun
+    setup_runs: dict[str, TestRun] = {}
+    setup_failed = False
     with WorktreeManager(repo) as worktrees:
         base_path = worktrees.create(base, "base")
         head_path = worktrees.create(head, "head")
         runner_type = "github-actions" if os.environ.get("GITHUB_ACTIONS", "").lower() == "true" else "local"
         environment = fingerprint(head_path, network_mode=network_mode, runner_type=runner_type)
-        base_evidence = execute(command, base_path, "BASE", base, str(environment.get("fingerprint", "")), timeout)
-        head_evidence = execute(command, head_path, "HEAD", head, str(environment.get("fingerprint", "")), timeout)
-        base_run, head_run = _test_run(base_evidence), _test_run(head_evidence)
+        base_setup_command = discover_setup_command(base_path, setup_command)
+        head_setup_command = discover_setup_command(head_path, setup_command)
+        base_setup = execute(base_setup_command, base_path, "BASE_SETUP", base, str(environment.get("fingerprint", "")), timeout) if base_setup_command else None
+        head_setup = execute(head_setup_command, head_path, "HEAD_SETUP", head, str(environment.get("fingerprint", "")), timeout) if head_setup_command else None
+        if base_setup:
+            setup_runs["base"] = _test_run(base_setup)
+        if head_setup:
+            setup_runs["head"] = _test_run(head_setup)
+        setup_failed = bool((base_setup and not base_setup.passed) or (head_setup and not head_setup.passed))
+        if base_setup and not base_setup.passed:
+            base_run = _test_run(execute("printf '%s' 'AgentProof: setup failed; test command not run'", base_path, "BASE", base, str(environment.get("fingerprint", "")), timeout=1))
+            base_run.exit_code = 125
+            base_run.output_tail = base_setup.output_tail
+        else:
+            base_evidence = execute(command, base_path, "BASE", base, str(environment.get("fingerprint", "")), timeout)
+            base_run = _test_run(base_evidence)
+        if head_setup and not head_setup.passed:
+            head_run = _test_run(execute("printf '%s' 'AgentProof: setup failed; test command not run'", head_path, "HEAD", head, str(environment.get("fingerprint", "")), timeout=1))
+            head_run.exit_code = 125
+            head_run.output_tail = head_setup.output_tail
+        else:
+            head_evidence = execute(command, head_path, "HEAD", head, str(environment.get("fingerprint", "")), timeout)
+            head_run = _test_run(head_evidence)
         findings.extend(detect_assertion_weakening(base_path, head_path, changed))
         for relative in changed:
             contract_candidate = relative.endswith(("contract.json", ".schema.json")) or "/contracts/" in relative or "/schemas/" in relative
             if contract_candidate and (base_path / relative).is_file() and (head_path / relative).is_file():
                 findings.extend(compare_json_contracts(base_path / relative, head_path / relative, relative))
 
+    discovered = discover_new_tests(changed) if auto_proof else []
+    mode = proof_mode(policy)
+    claim_requires_proof = any(any(token in claim.lower() for token in ("bug", "regression", "fix")) for claim in claims)
+    proof_required = bool(proof_commands) or mode == "required" or (mode == "auto" and bool(discovered or claim_requires_proof))
     proof_results, proof_findings = run_proof_tests(repo, base, head, proof_commands, timeout, str(environment.get("fingerprint", ""))) if proof_commands else ([], [])
     findings.extend(proof_findings)
-    if auto_proof:
-        discovered = discover_new_tests(changed)
-        transplanted, transplanted_findings = run_transplanted_proofs(repo, base, head, discovered, command, timeout, str(environment.get("fingerprint", ""))) if discovered else ([], [])
+    if setup_failed:
+        findings.append(Finding("AP204", "medium", "Repository setup failed before canonical tests could run; reproducibility is unproven.", category="reproducibility", evidence=[run.output_tail for run in setup_runs.values() if run.exit_code != 0]))
+    if auto_proof and discovered:
+        transplanted, transplanted_findings = run_transplanted_proofs(repo, base, head, discovered, command, timeout, str(environment.get("fingerprint", "")))
         proof_results.extend(transplanted)
         findings.extend(transplanted_findings)
 
@@ -122,8 +152,9 @@ def verify_core(repo: Path, base: str, head: str, test_command: str | None = Non
     blocking = [finding for finding in findings if finding.metadata.get("policy_action", "block") == "block"]
     security_blockers = [finding for finding in findings if finding.rule in {"AP501", "AP502"}]
     proof_blockers = [result for result in proof_results if result.get("status") in {"NOT_FIXED", "REGRESSION", "UNREPRODUCIBLE"}]
-    require_proof = bool(policy.get("verification", {}).get("require_proof_tests", False))
-    if not head_run.passed or blocking or security_blockers or proof_blockers or (require_proof and not proof_results):
+    if setup_failed and not blocking and not security_blockers:
+        verdict = "INCONCLUSIVE"
+    elif not head_run.passed or blocking or security_blockers or proof_blockers or (proof_required and not proof_results):
         verdict = "BLOCKED"
     elif any(result.get("status") == "INCONCLUSIVE" for result in proof_results):
         verdict = "INCONCLUSIVE"
@@ -139,9 +170,10 @@ def verify_core(repo: Path, base: str, head: str, test_command: str | None = Non
         base=base,
         head=head,
         claims=claims,
-        evidence={"changed_files": changed, "test_command": command, "head_tests_passed": head_run.passed},
+        evidence={"changed_files": changed, "test_command": command, "setup_command": setup_command or "auto", "setup_failed": setup_failed, "proof_tests_mode": mode, "proof_tests_required": proof_required, "head_tests_passed": head_run.passed},
         findings=findings,
         test_runs={"base": base_run, "head": head_run},
+        setup_runs=setup_runs,
         proof_tests=[],
         environment=environment,
         subject={"repository": str(repo), "base_sha": base, "head_sha": head},
@@ -152,10 +184,17 @@ def verify_core(repo: Path, base: str, head: str, test_command: str | None = Non
     for result in proof_results:
         receipt.proof_tests.append(result)
     receipt.evidence_graph = {
-        "nodes": [asdict(EvidenceNode("base-tests", "test_run", asdict(base_run))), asdict(EvidenceNode("head-tests", "test_run", asdict(head_run)))],
-        "edges": [{"source": "head-tests", "target": "receipt", "relation": "supports"}],
+        "nodes": [
+            *[asdict(EvidenceNode(f"{name}-setup", "setup_run", asdict(run))) for name, run in setup_runs.items()],
+            asdict(EvidenceNode("base-tests", "test_run", asdict(base_run))),
+            asdict(EvidenceNode("head-tests", "test_run", asdict(head_run))),
+        ],
+        "edges": [
+            *[{"source": f"{name}-setup", "target": f"{name}-tests", "relation": "precedes"} for name in setup_runs],
+            {"source": "head-tests", "target": "receipt", "relation": "supports"},
+        ],
     }
-    receipt.evidence["claims"] = [asdict(claim) for claim in _claims(claims, base_run, head_run, proof_results, findings)]
+    receipt.evidence["claims"] = [asdict(claim) for claim in _claims(claims, base_run, head_run, proof_results, findings, setup_failed)]
     private_key = os.environ.get("AGENTPROOF_ED25519_PRIVATE_KEY")
     if receipt_policy.get("signature_required") and private_key:
         from ..receipt.sign import sign_payload

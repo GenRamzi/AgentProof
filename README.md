@@ -165,19 +165,28 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
       # Release-candidate example; pin to v0.2.0 or a full SHA after stable release.
       - uses: GenRamzi/AgentProof@v0.2.0rc2
         with:
+          setup-command: python -m pip install -e ".[dev]"
           test-command: pytest -q
           policy: policies/strict.yml
 ```
 
 The included workflow uses the unprivileged `pull_request` event. The current release-candidate reference is `GenRamzi/AgentProof@v0.2.0rc2`; after stable release, pin `GenRamzi/AgentProof@v0.2.0` or a full commit SHA and do not depend on a moving default branch.
 
- It does not use `pull_request_target` to execute untrusted code, does not pass secrets to the PR, produces Markdown, JSON, and SARIF artifacts, and is explicit that the default CLI is not a security sandbox.
+It does not use `pull_request_target` to execute untrusted code, does not pass secrets to the PR, produces Markdown, JSON, and SARIF artifacts, and is explicit that the default CLI is not a security sandbox. `setup-command` runs independently in BASE and HEAD worktrees; setup failures are recorded as unreproducible evidence rather than misreported as test failures.
+
+## Live demo
+
+The public [agentproof-demo repository](https://github.com/GenRamzi/agentproof-demo) contains real pull-request scenarios for a genuine fix, deleted tests (AP001), skipped tests (AP002), narrowed CI, and fake regression tests. Its workflow uses the published `v0.2.0rc2` Action and preserves the resulting Receipt, Markdown, and SARIF artifacts.
+
+## Current stable-release blocker
+
+The `agentproof` distribution name is already occupied on PyPI by an unrelated project. AgentProof therefore remains in the release-candidate channel until a distinct distribution and product identity are selected and checked across PyPI, GitHub, and other public identities. Do not install an eventual stable release with `pip install agentproof` until that decision is complete.
 
 ## Architecture
 

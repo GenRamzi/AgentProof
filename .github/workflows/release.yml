@@ -65,11 +65,11 @@ jobs:
       - name: Generate checksums
         run: sha256sum dist/* > dist/SHA256SUMS
       - name: Attest distributions
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
           subject-path: "dist/*"
       - name: Upload distribution artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: agentproof-distribution
           path: dist/

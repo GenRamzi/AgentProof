@@ -6,6 +6,10 @@ inputs:
     description: Canonical test command. Leave empty for automatic discovery.
     required: false
     default: ""
+  setup-command:
+    description: Dependency/setup command run independently in each BASE and HEAD worktree.
+    required: false
+    default: ""
   proof-test:
     description: Newline-separated proof-test commands.
     required: false
@@ -26,6 +30,10 @@ inputs:
     description: Automatically discover and transplant new tests.
     required: false
     default: "true"
+  upload-sarif:
+    description: Upload generated SARIF findings to GitHub code scanning.
+    required: false
+    default: "false"
 outputs:
   verdict:
     description: AgentProof verdict.
@@ -45,6 +53,7 @@ runs:
       shell: bash
       env:
         AP_TEST_COMMAND: ${{ inputs.test-command }}
+        AP_SETUP_COMMAND: ${{ inputs.setup-command }}
         AP_PROOF_TESTS: ${{ inputs.proof-test }}
         AP_POLICY: ${{ inputs.policy }}
         AP_POLICY_PRESET: ${{ inputs.policy-preset }}
@@ -56,6 +65,7 @@ runs:
         head="${{ github.event.pull_request.head.sha || github.sha }}"
         args=(verify --repo . --base "$base" --head "$head" --policy-preset "$AP_POLICY_PRESET" --timeout "$AP_TIMEOUT" --json agentproof-receipt.json --markdown agentproof-report.md --sarif agentproof.sarif)
         if [ -n "$AP_TEST_COMMAND" ]; then args+=(--test-command "$AP_TEST_COMMAND"); fi
+        if [ -n "$AP_SETUP_COMMAND" ]; then args+=(--setup-command "$AP_SETUP_COMMAND"); fi
         if [ -n "$AP_POLICY" ]; then args+=(--policy "$AP_POLICY"); fi
         if [ "$AP_AUTO_PROOF" = "false" ]; then args+=(--no-auto-proof); fi
         while IFS= read -r proof; do [ -n "$proof" ] && args+=(--proof-test "$proof"); done <<< "$AP_PROOF_TESTS"
@@ -78,3 +88,8 @@ runs:
           agentproof-receipt.json
           agentproof-report.md
           agentproof.sarif
+    - name: Upload SARIF findings
+      if: always() && inputs.upload-sarif == 'true' && hashFiles('agentproof.sarif') != ''
+      uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
+      with:
+        sarif_file: agentproof.sarif

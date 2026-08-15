@@ -6,7 +6,7 @@
   "required": ["version"],
   "properties": {
     "version": {"const": 1},
-    "verification": {"type": "object", "properties": {"test_command": {"type": ["string", "null"]}, "require_tests": {"type": "boolean"}, "require_proof_tests": {"type": "boolean"}}},
+    "verification": {"type": "object", "properties": {"test_command": {"type": ["string", "null"]}, "setup_command": {"type": ["string", "null"]}, "require_tests": {"type": "boolean"}, "proof_tests": {"enum": ["off", "auto", "required"]}, "require_proof_tests": {"type": "boolean"}}},
     "integrity": {"type": "object", "additionalProperties": {"enum": ["ignore", "warning", "review", "block"]}},
     "coverage": {"type": "object", "properties": {"minimum_delta": {"type": "number"}}},
     "dependencies": {"type": "object", "properties": {"lockfile_changes": {"enum": ["ignore", "warning", "review", "block"]}}},
